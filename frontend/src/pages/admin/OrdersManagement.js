@@ -17,7 +17,7 @@ const OrdersManagement = () => {
 
   const fetchOrders = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${API}/orders/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -30,7 +30,7 @@ const OrdersManagement = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       await axios.put(
         `${API}/orders/${orderId}/status`,
         { order_status: newStatus },

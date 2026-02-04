@@ -15,6 +15,7 @@ from controllers.review_controller import get_review_router
 from controllers.admin_controller import get_admin_router
 from controllers.banner_controller import get_banner_router
 from controllers.upload_controller import get_upload_router
+from controllers.wishlist_controller import get_wishlist_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -45,14 +46,21 @@ api_router.include_router(get_review_router(db))
 api_router.include_router(get_admin_router(db))
 api_router.include_router(get_banner_router(db))
 api_router.include_router(get_upload_router())
+api_router.include_router(get_wishlist_router(db))
+
 
 # Include the router in the main app
 app.include_router(api_router)
 
-# Serve uploaded files
-UPLOAD_DIR = Path("/app/backend/uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
-app.mount("/api/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
+# Serve uploaded files (Windows + Linux safe)
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+
+app.mount(
+    "/api/uploads",
+    StaticFiles(directory=str(UPLOAD_DIR)),
+    name="uploads"
+)
 
 app.add_middleware(
     CORSMiddleware,

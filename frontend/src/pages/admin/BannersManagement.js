@@ -67,7 +67,7 @@ const BannersManagement = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       const bannerData = {
         ...formData,
         display_order: parseInt(formData.display_order)
@@ -116,7 +116,7 @@ const BannersManagement = () => {
     if (!window.confirm('Are you sure you want to delete this banner?')) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       await axios.delete(`${API}/banners/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

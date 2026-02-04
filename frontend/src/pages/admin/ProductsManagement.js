@@ -36,7 +36,7 @@ const ProductsManagement = () => {
 
   const fetchProducts = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       const response = await axios.get(`${API}/products/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -120,7 +120,7 @@ const ProductsManagement = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
@@ -180,7 +180,7 @@ const ProductsManagement = () => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       await axios.delete(`${API}/products/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

@@ -4,15 +4,20 @@ import uuid
 import shutil
 import os
 
-UPLOAD_DIR = Path("/app/backend/uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# ✅ BASE DIR = backend folder
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Create subdirectories
-(UPLOAD_DIR / "products").mkdir(exist_ok=True)
-(UPLOAD_DIR / "banners").mkdir(exist_ok=True)
+# ✅ uploads folder inside backend
+UPLOAD_DIR = BASE_DIR / "uploads"
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+# ✅ create folders safely (Windows + Linux + Docker)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+(UPLOAD_DIR / "products").mkdir(parents=True, exist_ok=True)
+(UPLOAD_DIR / "banners").mkdir(parents=True, exist_ok=True)
+
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".jfif"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
 
 def get_upload_router() -> APIRouter:
     router = APIRouter(prefix="/upload", tags=["Upload"])

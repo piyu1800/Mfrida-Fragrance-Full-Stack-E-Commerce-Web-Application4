@@ -66,7 +66,7 @@ const CategoriesManagement = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       const categoryData = {
         ...formData,
         display_order: parseInt(formData.display_order),
@@ -115,7 +115,7 @@ const CategoriesManagement = () => {
     if (!window.confirm('Are you sure you want to delete this category?')) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       await axios.delete(`${API}/categories/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

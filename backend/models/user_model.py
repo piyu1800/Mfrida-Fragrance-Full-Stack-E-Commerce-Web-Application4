@@ -24,6 +24,7 @@ class User(BaseModel):
     addresses: List[Address] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    wishlist: List[str] = []
 
 class UserCreate(BaseModel):
     email: EmailStr

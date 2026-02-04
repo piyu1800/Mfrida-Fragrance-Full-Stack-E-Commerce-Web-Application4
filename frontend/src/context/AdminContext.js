@@ -35,15 +35,16 @@ export const AdminProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await axios.post(`${API}/auth/login`, { email, password });
-      const { access_token, user } = response.data;
+      const { token, user } = response.data;
       
       if (user.role !== 'admin') {
         throw new Error('Access denied. Admin only.');
       }
-      
-      localStorage.setItem('token', access_token);
+      console.log("****************************")
+      console.log(token);
+      localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setAdminData(user);
       return true;
     } catch (error) {

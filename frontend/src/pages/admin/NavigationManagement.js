@@ -56,7 +56,7 @@ const NavigationManagement = () => {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       const navData = {
         ...formData,
         display_order: parseInt(formData.display_order)
@@ -102,7 +102,7 @@ const NavigationManagement = () => {
     if (!window.confirm('Are you sure you want to delete this navigation item?')) return;
 
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = localStorage.getItem('token');
       await axios.delete(`${API}/admin/navigation/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });

@@ -5,6 +5,8 @@ import { Star, ShoppingCart, Heart } from 'lucide-react';
 import axios from 'axios';
 import { useCart } from '../context/CartContext';
 import { toast } from 'sonner';
+import { useWishlist } from '../context/WishlistContext';
+import { useAuth } from '../context/AuthContext';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -15,6 +17,8 @@ const ProductDetail = () => {
   const [reviews, setReviews] = useState([]);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [quantity, setQuantity] = useState(1);
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
+  const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState(0);
   const { addToCart } = useCart();
 
@@ -22,6 +26,18 @@ const ProductDetail = () => {
     fetchProductData();
   }, [slug]);
 
+    const handleWishlistToggle = async () => {
+    if (!user) {
+      toast.error('Please login to add to wishlist');
+      return;
+    }
+
+    if (isInWishlist(product.id)) {
+      await removeFromWishlist(product.id);
+    } else {
+      await addToWishlist(product.id);
+    }
+  };
   const fetchProductData = async () => {
     try {
       const [productRes, reviewsRes] = await Promise.all([
@@ -166,10 +182,18 @@ const ProductDetail = () => {
                 Add to Cart
               </button>
               <button
-                className="border border-[#1A1A1A] py-4 px-6 rounded-none hover:bg-[#1A1A1A] hover:text-[#FDFBF7] transition-colors duration-300"
+                onClick={handleWishlistToggle}
+                className={`border py-4 px-6 rounded-none transition-colors duration-300 ${
+                  isInWishlist(product.id)
+                    ? 'bg-[#B76E79] text-white border-[#B76E79] hover:bg-[#a05e68]'
+                    : 'border-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-[#FDFBF7]'
+                }`}
                 data-testid="add-to-wishlist-button"
               >
-                <Heart size={20} />
+                <Heart 
+                  size={20} 
+                  fill={isInWishlist(product.id) ? 'currentColor' : 'none'}
+                />
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Star } from 'lucide-react';
@@ -14,10 +14,65 @@ const Home = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [bestSelling, setBestSelling] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const sliderRef = useRef(null);
 
   useEffect(() => {
     fetchHomepageData();
   }, []);
+
+  // Auto-rotation for banners with infinite loop
+  useEffect(() => {
+    if (banners && banners.length > 1) {
+      const interval = setInterval(() => {
+        handleNext();
+      }, 5000); // Change banner every 5 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [banners, currentBannerIndex]);
+
+  // Handle transition end for infinite loop
+  useEffect(() => {
+    if (!isTransitioning) {
+      const timer = setTimeout(() => {
+        setIsTransitioning(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isTransitioning]);
+
+  const handleNext = () => {
+    if (currentBannerIndex === banners.length) {
+      setIsTransitioning(false);
+      setCurrentBannerIndex(0);
+      setTimeout(() => {
+        setIsTransitioning(true);
+        setCurrentBannerIndex(1);
+      }, 50);
+    } else {
+      setCurrentBannerIndex(prev => prev + 1);
+    }
+  };
+
+  const handlePrev = () => {
+    if (currentBannerIndex === 0) {
+      setIsTransitioning(false);
+      setCurrentBannerIndex(banners.length);
+      setTimeout(() => {
+        setIsTransitioning(true);
+        setCurrentBannerIndex(banners.length - 1);
+      }, 50);
+    } else {
+      setCurrentBannerIndex(prev => prev - 1);
+    }
+  };
+
+  const handleDotClick = (index) => {
+    setIsTransitioning(true);
+    setCurrentBannerIndex(index);
+  };
 
   const fetchHomepageData = async () => {
     try {
@@ -86,90 +141,109 @@ const Home = () => {
     </Link>
   );
 
+  // Create extended banners array for infinite loop
+  const extendedBanners = banners.length > 0 ? [banners[banners.length - 1], ...banners, banners[0]] : [];
+
   return (
     <div data-testid="home-page">
-      {homepage && homepage.hero_banners.length > 0 && (
-        <section className="relative h-[70vh] md:h-[85vh] flex items-center" data-testid="hero-section">
-          <div
-            className="absolute inset-0 z-0"
-            style={{
-              backgroundImage: `url(${homepage.hero_banners[0].image_url})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
+      {/* Hero Banner Slider with Infinite Loop */}
+      {banners && banners.length > 0 && (
+        <section className="relative h-[70vh] md:h-[85vh] flex items-center overflow-hidden" data-testid="hero-section">
+          {/* Sliding banners */}
+          <div 
+            ref={sliderRef}
+            className="absolute inset-0 flex"
+            style={{ 
+              transform: `translateX(-${(currentBannerIndex + 1) * 100}%)`,
+              transition: isTransitioning ? 'transform 1000ms ease-in-out' : 'none'
             }}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#0F0F0F]/60 to-transparent"></div>
-          </div>
-
-          <div className="relative z-10 max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24 w-full">
-            <motion.div
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="max-w-2xl"
-            >
-              <h1 className="text-white text-5xl md:text-7xl lg:text-8xl mb-6 leading-tight">
-                {homepage.hero_banners[0].title}
-              </h1>
-              <p className="text-white/90 text-lg md:text-xl mb-12 font-light">
-                {homepage.hero_banners[0].subtitle}
-              </p>
-              <Link
-                to={homepage.hero_banners[0].cta_link}
-                className="inline-flex items-center gap-3 bg-white text-[#1A1A1A] px-10 py-5 rounded-none hover:bg-[#B76E79] hover:text-white transition-all duration-500 group"
-                data-testid="hero-cta-button"
+            {extendedBanners.map((banner, index) => (
+              <div
+                key={`banner-${index}`}
+                className="min-w-full h-full relative flex-shrink-0"
+                style={{
+                  backgroundImage: `url(${banner.image_url})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+                }}
               >
-                <span className="uppercase tracking-widest text-sm font-medium">
-                  {homepage.hero_banners[0].cta_text}
-                </span>
-                <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </motion.div>
-          </div>
-        </section>
-      )}
-
-      {banners.length > 0 && (
-        <section className="py-12 bg-black" data-testid="banners-section">
-          <div className="max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {banners.map((banner) => (
-                <motion.div
-                  key={banner.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  className="relative overflow-hidden group cursor-pointer"
-                  data-testid={`banner-${banner.id}`}
-                >
-                  <div className="relative h-96">
-                    <img
-                      src={banner.image_url}
-                      alt={banner.title}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-                  </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
-                    <h3 className="text-2xl font-normal mb-2" style={{ color: '#D4AF37' }}>{banner.title}</h3>
-                    {banner.subtitle && <p className="text-sm mb-4 text-white/80">{banner.subtitle}</p>}
+                <div className="absolute inset-0 bg-gradient-to-r from-[#0F0F0F]/60 to-transparent"></div>
+                
+                <div className="relative z-10 h-full flex items-center max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24 w-full">
+                  <motion.div
+                    initial={{ opacity: 0, y: 40 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="max-w-2xl"
+                  >
+                    <h1 className="text-white text-5xl md:text-7xl lg:text-8xl mb-6 leading-tight">
+                      {banner.title}
+                    </h1>
+                    {banner.subtitle && (
+                      <p className="text-white/90 text-lg md:text-xl mb-12 font-light">
+                        {banner.subtitle}
+                      </p>
+                    )}
                     {banner.cta_text && banner.cta_link && (
                       <Link
                         to={banner.cta_link}
-                        className="inline-flex items-center gap-2 text-white border border-white px-6 py-2 hover:bg-white hover:text-black transition-all"
+                        className="inline-flex items-center gap-3 bg-white text-[#1A1A1A] px-10 py-5 rounded-none hover:bg-[#B76E79] hover:text-white transition-all duration-500 group"
+                        data-testid="hero-cta-button"
                       >
-                        <span className="text-sm uppercase tracking-wider">{banner.cta_text}</span>
-                        <ArrowRight size={16} />
+                        <span className="uppercase tracking-widest text-sm font-medium">
+                          {banner.cta_text}
+                        </span>
+                        <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                       </Link>
                     )}
-                  </div>
-                </motion.div>
+                  </motion.div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Navigation dots */}
+          {banners.length > 1 && (
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex gap-3">
+              {banners.map((banner, index) => (
+                <button
+                  key={banner.id || index}
+                  onClick={() => handleDotClick(index)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    currentBannerIndex === index 
+                      ? 'bg-white w-8' 
+                      : 'bg-white/50 hover:bg-white/70'
+                  }`}
+                  data-testid={`banner-dot-${index}`}
+                />
               ))}
             </div>
-          </div>
+          )}
+
+          {/* Previous/Next buttons */}
+          {banners.length > 1 && (
+            <>
+              <button
+                onClick={handlePrev}
+                className="absolute left-6 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-sm transition-all"
+                data-testid="banner-prev-button"
+              >
+                <ArrowRight size={24} className="rotate-180" />
+              </button>
+              <button
+                onClick={handleNext}
+                className="absolute right-6 top-1/2 -translate-y-1/2 z-20 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-sm transition-all"
+                data-testid="banner-next-button"
+              >
+                <ArrowRight size={24} />
+              </button>
+            </>
+          )}
         </section>
       )}
 
+      {/* Categories Section */}
       <section className="py-24 md:py-32 bg-white" data-testid="categories-section">
         <div className="max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24">
           <motion.div
@@ -212,6 +286,7 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Featured Products Section */}
       {featuredProducts.length > 0 && (
         <section className="py-24 md:py-32 bg-[#F5F2EB]" data-testid="featured-section">
           <div className="max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24">
@@ -246,6 +321,7 @@ const Home = () => {
         </section>
       )}
 
+      {/* Best Selling Section */}
       {bestSelling.length > 0 && (
         <section className="py-24 md:py-32" data-testid="bestsellers-section">
           <div className="max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24">
@@ -268,6 +344,7 @@ const Home = () => {
         </section>
       )}
 
+      {/* New Arrivals Section */}
       {newArrivals.length > 0 && (
         <section className="py-24 md:py-32 bg-[#F5F2EB]" data-testid="new-arrivals-section">
           <div className="max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24">
