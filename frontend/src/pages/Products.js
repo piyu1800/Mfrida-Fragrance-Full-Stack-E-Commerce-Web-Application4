@@ -3,12 +3,15 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, SlidersHorizontal } from 'lucide-react';
 import axios from 'axios';
-
+import { useCart } from '../context/CartContext';
+import { ShoppingCart } from 'lucide-react';
+import { toast } from 'sonner';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { addToCart } = useCart();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,13 @@ const Products = () => {
   useEffect(() => {
     fetchProducts();
   }, [filters, searchParams]);
+
+  const handleAddToCart = (e, product) => {
+    e.preventDefault(); // Prevent navigation to product detail
+    e.stopPropagation();
+    addToCart(product, 1);
+    toast.success('Added to cart!');
+  };
 
   const fetchCategories = async () => {
     try {
@@ -203,49 +213,77 @@ const Products = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
-                {products.map((product) => (
-                  <Link key={product.id} to={`/product/${product.slug}`} data-testid={`product-${product.slug}`}>
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="group cursor-pointer"
-                    >
-                      <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F2EB] mb-6">
-                        <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
-                        {product.discount > 0 && (
-                          <div className="absolute top-4 right-4 bg-[#B76E79] text-white text-xs px-3 py-1 uppercase tracking-wider">
-                            {product.discount}% Off
+              {products.map((product) => (
+                        <motion.div
+                          key={product.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="group"
+                          data-testid={`product-${product.slug}`}
+                        >
+                          <Link to={`/product/${product.slug}`}>
+                            <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F2EB] mb-6">
+                              <img
+                                src={product.images[0]}
+                                alt={product.name}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                              />
+                              {product.discount > 0 && (
+                                <div className="absolute top-4 right-4 bg-[#B76E79] text-white text-xs px-3 py-1 uppercase tracking-wider">
+                                  {product.discount}% Off
+                                </div>
+                              )}
+                            </div>
+                          </Link>
+                          
+                          <div className="space-y-3">
+                            <Link to={`/product/${product.slug}`}>
+                              <p className="text-xs uppercase tracking-widest text-[#585858]">{product.brand}</p>
+                              <h3 className="text-lg font-normal hover:text-[#B76E79] transition-colors">{product.name}</h3>
+                            </Link>
+                            
+                            {/* Rating Display */}
+                            {product.total_reviews > 0 && (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      size={14}
+                                      className={i < Math.floor(product.average_rating) ? 'fill-[#D4AF37] text-[#D4AF37]' : 'text-gray-300'}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-sm text-[#585858]">
+                                  {product.average_rating} ({product.total_reviews})
+                                </span>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-2">
+                              {product.discount > 0 ? (
+                                <>
+                                  <p className="text-lg font-medium">₹{product.final_price.toFixed(2)}</p>
+                                  <p className="text-sm text-[#585858] line-through">₹{product.price.toFixed(2)}</p>
+                                </>
+                              ) : (
+                                <p className="text-lg font-medium">₹{product.price.toFixed(2)}</p>
+                              )}
+                            </div>
+                            
+                            {/* Add to Cart Button */}
+                            <button
+                              onClick={(e) => handleAddToCart(e, product)}
+                              disabled={product.stock === 0}
+                              className="w-full bg-[#1A1A1A] text-[#FDFBF7] py-3 px-4 hover:bg-[#B76E79] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              data-testid={`add-to-cart-${product.slug}`}
+                            >
+                              <ShoppingCart size={16} />
+                              {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+                            </button>
                           </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <p className="text-xs uppercase tracking-widest text-[#585858]">{product.brand}</p>
-                        <h3 className="text-lg font-normal">{product.name}</h3>
-                        <div className="flex items-center gap-2">
-                          {product.discount > 0 ? (
-                            <>
-                              <p className="text-lg font-medium">₹{product.final_price.toFixed(2)}</p>
-                              <p className="text-sm text-[#585858] line-through">₹{product.price.toFixed(2)}</p>
-                            </>
-                          ) : (
-                            <p className="text-lg font-medium">₹{product.price.toFixed(2)}</p>
-                          )}
-                        </div>
-                        {product.total_reviews > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Star size={14} className="fill-[#D4AF37] text-[#D4AF37]" />
-                            <span className="text-sm">{product.average_rating}</span>
-                            <span className="text-xs text-[#585858]">({product.total_reviews})</span>
-                          </div>
-                        )}
-                      </div>
-                    </motion.div>
-                  </Link>
-                ))}
+                        </motion.div>
+                      ))}
               </div>
             )}
           </div>

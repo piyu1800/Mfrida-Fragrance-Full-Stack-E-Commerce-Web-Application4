@@ -20,5 +20,8 @@ class ReviewCreate(BaseModel):
     rating: int
     comment: str
 
+
 class ReviewUpdate(BaseModel):
+    rating: Optional[int] = None
+    comment: Optional[str] = None
     is_approved: Optional[bool] = None

@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@100..900&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lato:wght@300;400;700&family=Playfair+Display:wght@400;500;600;700;800;900&family=Cinzel:wght@400;500;600;700;800;900&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -34,27 +33,27 @@
     @apply border-border;
   }
   
-  body {
-    @apply bg-white text-[#1A1A1A] font-['Outfit'];
+   body {
+    @apply bg-white text-[#1A1A1A] font-['Lato'];
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   
   h1, h2, h3, h4, h5, h6 {
-    @apply font-['Bodoni_Moda'];
-    letter-spacing: -0.02em;
+    @apply font-['Inter'];
+    letter-spacing: -0.01em;
   }
   
   h1 {
-    @apply text-4xl sm:text-5xl lg:text-6xl font-light;
+    @apply text-4xl sm:text-5xl lg:text-6xl font-normal;
   }
   
   h2 {
-    @apply text-3xl sm:text-4xl lg:text-5xl font-light;
+    @apply text-3xl sm:text-4xl lg:text-5xl font-normal;
   }
   
   h3 {
-    @apply text-2xl sm:text-3xl font-normal;
+    @apply text-2xl sm:text-3xl font-medium;
   }
 }
 
@@ -70,4 +69,131 @@
   .btn-secondary {
     @apply border-2 border-[#B76E79] text-[#B76E79] px-8 py-4 hover:bg-[#B76E79] hover:text-white transition-colors duration-300 font-medium;
   }
+}
+/* Premium Banner Font */
+.banner-title {
+  font-family: 'Cinzel', serif !important;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.banner-subtitle {
+  font-family: 'Playfair Display', serif !important;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* Premium Golden Colors */
+:root {
+  --gold-primary: #D4AF37;
+  --gold-light: #F4E4BC;
+  --gold-dark: #B8931F;
+  --rose-gold: #E8C4A0;
+  --premium-purple: #4A154B;
+}
+
+/* Smooth Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Premium Card Hover Effects */
+.premium-card {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Golden Gradient Button */
+.btn-golden {
+  background: linear-gradient(135deg, #D4AF37 0%, #F4E4BC 50%, #D4AF37 100%);
+  background-size: 200% 200%;
+  transition: all 0.3s ease;
+}
+
+.btn-golden:hover {
+  background-position: 100% 0;
+  box-shadow: 0 8px 20px rgba(212, 175, 55, 0.4);
+}
+
+
+
+/* Swiper Custom Styles for New Arrivals */
+.new-arrivals-swiper {
+  padding-left: 60px !important;
+  padding-right: 60px !important;
+}
+
+.new-arrivals-swiper .swiper-slide {
+  width: 320px !important;
+  transition: all 0.3s ease;
+}
+
+.new-arrivals-swiper .swiper-slide-active {
+  transform: scale(1.05);
+}
+
+.new-arrivals-swiper .swiper-pagination {
+  bottom: -10px !important;
+}
+
+.new-arrivals-swiper .swiper-pagination-bullet {
+  width: 12px;
+  height: 12px;
+  background: #D4AF37;
+  opacity: 0.5;
+}
+
+.new-arrivals-swiper .swiper-pagination-bullet-active {
+  opacity: 1;
+  width: 30px;
+  border-radius: 6px;
+}
+
+/* Hide default swiper buttons */
+.new-arrivals-swiper .swiper-button-next,
+.new-arrivals-swiper .swiper-button-prev {
+  display: none;
+}
+
+/* Smooth scroll behavior */
+.swiper-wrapper {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
 }

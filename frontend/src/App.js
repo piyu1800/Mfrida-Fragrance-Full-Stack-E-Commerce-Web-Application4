@@ -28,6 +28,7 @@ import OrdersManagement from './pages/admin/OrdersManagement';
 import UsersManagement from './pages/admin/UsersManagement';
 import BannersManagement from './pages/admin/BannersManagement';
 import NavigationManagement from './pages/admin/NavigationManagement';
+import ReviewsManagement from './pages/admin/ReviewsManagement';
 
 import './App.css';
 
@@ -66,6 +67,7 @@ function App() {
                       </AdminProtectedRoute>
                     }
                   >
+                    
                     <Route path="dashboard" element={<AdminDashboard />} />
                     <Route path="products" element={<ProductsManagement />} />
                     <Route path="categories" element={<CategoriesManagement />} />
@@ -73,6 +75,7 @@ function App() {
                     <Route path="navigation" element={<NavigationManagement />} />
                     <Route path="orders" element={<OrdersManagement />} />
                     <Route path="users" element={<UsersManagement />} />
+                    <Route path="reviews" element={<ReviewsManagement />} />
                   </Route>
 
                   {/* Customer Routes */}

@@ -9,6 +9,7 @@ import {
   Navigation,
   ShoppingCart,
   Users,
+  Star,
   LogOut,
   Menu,
   X
@@ -30,6 +31,7 @@ const AdminLayout = () => {
     { icon: Navigation, label: 'Navigation', path: '/admin/navigation' },
     { icon: ShoppingCart, label: 'Orders', path: '/admin/orders' },
     { icon: Users, label: 'Users', path: '/admin/users' },
+    { icon: Star, label: 'Reviews', path: '/admin/reviews' },
   ];
 
   const handleLogout = () => {

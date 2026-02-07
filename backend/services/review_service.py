@@ -80,3 +80,45 @@ class ReviewService:
                     "total_reviews": len(reviews)
                 }}
             )
+                
+    async def delete_review(self, review_id: str, user_id: str) -> bool:
+            # Check if review belongs to user
+            review = await self.collection.find_one({"id": review_id, "user_id": user_id})
+            if not review:
+                return False
+            
+            product_id = review["product_id"]
+            result = await self.collection.delete_one({"id": review_id, "user_id": user_id})
+            
+            if result.deleted_count > 0:
+                await self._update_product_rating(product_id)
+                return True
+            return False
+        
+    async def update_user_review(self, review_id: str, user_id: str, rating: int, comment: str) -> Optional[Review]:
+            # Check if review belongs to user
+            review = await self.collection.find_one({"id": review_id, "user_id": user_id})
+            if not review:
+                return None
+            
+            update_data = {
+                "rating": rating,
+                "comment": comment,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            await self.collection.update_one(
+                {"id": review_id, "user_id": user_id},
+                {"$set": update_data}
+            )
+            
+            updated_review = await self.collection.find_one({"id": review_id}, {"_id": 0})
+            
+            if updated_review:
+                await self._update_product_rating(updated_review["product_id"])
+            
+            return Review(**updated_review) if updated_review else None
+        
+    async def get_user_review_for_product(self, user_id: str, product_id: str) -> Optional[Review]:
+            review = await self.collection.find_one({"user_id": user_id, "product_id": product_id}, {"_id": 0})
+            return Review(**review) if review else None
