@@ -1,34 +1,27 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from models.review_model import ReviewCreate, ReviewUpdate, Review
-import uuid
-from datetime import datetime, timezone
+from models.review_model import Review, ReviewCreate, ReviewUpdate
 from typing import List, Optional
+from datetime import datetime, timezone
+import uuid
 
 class ReviewService:
     def __init__(self, db: AsyncIOMotorDatabase):
-        self.db = db
-        self.collection = db.reviews
-        self.products_collection = db.products
+        self.collection = db['reviews']
+        self.products_collection = db['products']
     
-    async def create_review(self, user_id: str, user_name: str, review_data: ReviewCreate) -> Review:
-        review_id = str(uuid.uuid4())
-        now = datetime.now(timezone.utc)
+    async def create_review(self, review_data: ReviewCreate, current_user: dict) -> Review:
+        review_dict = review_data.model_dump()
+        review_dict['id'] = str(uuid.uuid4())
+        review_dict['user_id'] = current_user['id']
+        review_dict['user_name'] = current_user.get('name', current_user.get('email', 'Anonymous'))
+        review_dict['is_approved'] = False
         
-        doc = {
-            "id": review_id,
-            "product_id": review_data.product_id,
-            "user_id": user_id,
-            "user_name": user_name,
-            "rating": review_data.rating,
-            "comment": review_data.comment,
-            "is_approved": False,
-            "created_at": now.isoformat(),
-            "updated_at": now.isoformat()
-        }
+        await self.collection.insert_one(review_dict)
         
-        await self.collection.insert_one(doc)
-        doc.pop("_id", None)
-        return Review(**doc)
+        # Update product rating
+        await self._update_product_rating(review_data.product_id)
+        
+        return Review(**review_dict)
     
     async def get_reviews(
         self,
@@ -39,86 +32,139 @@ class ReviewService:
     ) -> List[Review]:
         query = {}
         if product_id:
-            query["product_id"] = product_id
+            query['product_id'] = product_id
         if is_approved is not None:
-            query["is_approved"] = is_approved
+            query['is_approved'] = is_approved
         
-        reviews = await self.collection.find(query, {"_id": 0}).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+        cursor = self.collection.find(query).sort('created_at', -1).skip(skip).limit(limit)
+        reviews = await cursor.to_list(length=limit)
         return [Review(**review) for review in reviews]
     
-    async def update_review(self, review_id: str, review_data: ReviewUpdate) -> Optional[Review]:
-        update_data = {k: v for k, v in review_data.model_dump().items() if v is not None}
-        if not update_data:
-            review = await self.collection.find_one({"id": review_id}, {"_id": 0})
-            return Review(**review) if review else None
+    async def get_review_stats(self, product_id: str):
+        """Get review statistics for a product"""
+        pipeline = [
+            {'$match': {'product_id': product_id, 'is_approved': True}},
+            {'$group': {
+                '_id': '$rating',
+                'count': {'$sum': 1}
+            }}
+        ]
         
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        rating_distribution = {}
+        total_reviews = 0
+        total_rating_sum = 0
         
-        await self.collection.update_one(
-            {"id": review_id},
-            {"$set": update_data}
-        )
+        async for doc in self.collection.aggregate(pipeline):
+            rating = doc['_id']
+            count = doc['count']
+            rating_distribution[rating] = count
+            total_reviews += count
+            total_rating_sum += rating * count
         
-        review = await self.collection.find_one({"id": review_id}, {"_id": 0})
+        # Fill in missing ratings with 0
+        for i in range(1, 6):
+            if i not in rating_distribution:
+                rating_distribution[i] = 0
         
-        if review and "is_approved" in update_data:
-            await self._update_product_rating(review["product_id"])
+        average_rating = total_rating_sum / total_reviews if total_reviews > 0 else 0
         
+        return {
+            'average_rating': round(average_rating, 1),
+            'total_reviews': total_reviews,
+            'rating_distribution': rating_distribution
+        }
+    
+    async def get_review_by_id(self, review_id: str) -> Optional[Review]:
+        review = await self.collection.find_one({'id': review_id})
         return Review(**review) if review else None
     
-    async def _update_product_rating(self, product_id: str):
-        reviews = await self.get_reviews(product_id=product_id, is_approved=True)
+    async def update_review(self, review_id: str, update_data: ReviewUpdate) -> Optional[Review]:
+        update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
         
-        if reviews:
-            total_rating = sum(review.rating for review in reviews)
-            average_rating = total_rating / len(reviews)
-            
-            await self.products_collection.update_one(
-                {"id": product_id},
-                {"$set": {
-                    "average_rating": round(average_rating, 1),
-                    "total_reviews": len(reviews)
-                }}
-            )
-                
-    async def delete_review(self, review_id: str, user_id: str) -> bool:
-            # Check if review belongs to user
-            review = await self.collection.find_one({"id": review_id, "user_id": user_id})
-            if not review:
-                return False
-            
-            product_id = review["product_id"]
-            result = await self.collection.delete_one({"id": review_id, "user_id": user_id})
-            
-            if result.deleted_count > 0:
-                await self._update_product_rating(product_id)
-                return True
+        if not update_dict:
+            return None
+        
+        update_dict['updated_at'] = datetime.now(timezone.utc)
+        
+        result = await self.collection.find_one_and_update(
+            {'id': review_id},
+            {'$set': update_dict},
+            return_document=True
+        )
+        
+        if result:
+            # Update product rating
+            await self._update_product_rating(result['product_id'])
+            return Review(**result)
+        return None
+    
+    async def update_user_review(self, review_id: str, rating: int, comment: str, current_user: dict) -> Optional[Review]:
+        # Find review and check ownership
+        review = await self.collection.find_one({'id': review_id, 'user_id': current_user['id']})
+        if not review:
+            return None
+        
+        update_dict = {
+            'rating': rating,
+            'comment': comment,
+            'is_approved': False,  # Reset approval status
+            'updated_at': datetime.now(timezone.utc)
+        }
+        
+        result = await self.collection.find_one_and_update(
+            {'id': review_id},
+            {'$set': update_dict},
+            return_document=True
+        )
+        
+        if result:
+            await self._update_product_rating(result['product_id'])
+            return Review(**result)
+        return None
+    
+    async def delete_review(self, review_id: str, current_user: dict) -> bool:
+        # Check if user is admin or review owner
+        review = await self.collection.find_one({'id': review_id})
+        if not review:
             return False
         
-    async def update_user_review(self, review_id: str, user_id: str, rating: int, comment: str) -> Optional[Review]:
-            # Check if review belongs to user
-            review = await self.collection.find_one({"id": review_id, "user_id": user_id})
-            if not review:
-                return None
-            
-            update_data = {
-                "rating": rating,
-                "comment": comment,
-                "updated_at": datetime.now(timezone.utc).isoformat()
-            }
-            
-            await self.collection.update_one(
-                {"id": review_id, "user_id": user_id},
-                {"$set": update_data}
-            )
-            
-            updated_review = await self.collection.find_one({"id": review_id}, {"_id": 0})
-            
-            if updated_review:
-                await self._update_product_rating(updated_review["product_id"])
-            
-            return Review(**updated_review) if updated_review else None
+        is_admin = current_user.get('role') == 'admin'
+        is_owner = review['user_id'] == current_user['id']
         
-    async def get_user_review_for_product(self, user_id: str, product_id: str) -> Optional[Review]:
-            review = await self.collection.find_one({"user_id": user_id, "product_id": product_id}, {"_id": 0})
-            return Review(**review) if review else None
+        if not (is_admin or is_owner):
+            return False
+        
+        product_id = review['product_id']
+        result = await self.collection.delete_one({'id': review_id})
+        
+        if result.deleted_count > 0:
+            await self._update_product_rating(product_id)
+            return True
+        return False
+    
+    async def _update_product_rating(self, product_id: str):
+        """Update product's average rating and total reviews"""
+        pipeline = [
+            {'$match': {'product_id': product_id, 'is_approved': True}},
+            {'$group': {
+                '_id': None,
+                'average_rating': {'$avg': '$rating'},
+                'total_reviews': {'$sum': 1}
+            }}
+        ]
+        
+        result = await self.collection.aggregate(pipeline).to_list(length=1)
+        
+        if result:
+            await self.products_collection.update_one(
+                {'id': product_id},
+                {'$set': {
+                    'average_rating': round(result[0]['average_rating'], 1),
+                    'total_reviews': result[0]['total_reviews']
+                }}
+            )
+        else:
+            await self.products_collection.update_one(
+                {'id': product_id},
+                {'$set': {'average_rating': 0, 'total_reviews': 0}}
+            )

@@ -48,6 +48,27 @@ def get_product_router(db: AsyncIOMotorDatabase) -> APIRouter:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
         return product
     
+    # NEW: Get product variants endpoint
+    @router.get("/{product_id}/variants", response_model=List[Product])
+    async def get_product_variants(product_id: str):
+        """Get all variants of a product"""
+        variants = await product_service.get_product_variants(product_id)
+        return variants
+    
+    # NEW: Get related products endpoint
+    @router.get("/{product_id}/related", response_model=List[Product])
+    async def get_related_products(product_id: str):
+        """Get related products for a product"""
+        product = await product_service.get_product_by_id(product_id)
+        if not product:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        
+        if not product.related_products:
+            return []
+        
+        related = await product_service.get_related_products_by_ids(product.related_products)
+        return related
+    
     @router.get("/{product_id}", response_model=Product)
     async def get_product(product_id: str):
         product = await product_service.get_product_by_id(product_id)

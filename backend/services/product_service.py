@@ -81,6 +81,37 @@ class ProductService:
             return Product(**product)
         return None
     
+    # NEW: Get product variants
+    async def get_product_variants(self, product_id: str) -> List[Product]:
+        """Get all variants of a product (products with same variant_group)"""
+        product = await self.get_product_by_id(product_id)
+        if not product or not product.variant_group:
+            return []
+        
+        # Find all products with the same variant_group, excluding the current product
+        variants = await self.collection.find(
+            {
+                "variant_group": product.variant_group,
+                "id": {"$ne": product_id}
+            },
+            {"_id": 0}
+        ).to_list(100)
+        
+        return [Product(**variant) for variant in variants]
+    
+    # NEW: Get related products by IDs
+    async def get_related_products_by_ids(self, product_ids: List[str]) -> List[Product]:
+        """Get products by their IDs"""
+        if not product_ids:
+            return []
+        
+        products = await self.collection.find(
+            {"id": {"$in": product_ids}},
+            {"_id": 0}
+        ).to_list(len(product_ids))
+        
+        return [Product(**prod) for prod in products]
+    
     async def update_product(self, product_id: str, product_data: ProductUpdate) -> Optional[Product]:
         update_data = {k: v for k, v in product_data.model_dump().items() if v is not None}
         if not update_data:

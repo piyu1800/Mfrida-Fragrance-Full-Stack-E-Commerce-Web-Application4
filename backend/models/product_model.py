@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 
 class Product(BaseModel):
@@ -17,6 +17,14 @@ class Product(BaseModel):
     stock: int = 0
     description: str
     fragrance_notes: Optional[str] = None
+    
+    # NEW: Variant fields
+    variant_group: Optional[str] = None  # All products with same variant_group are variants of each other
+    variant_name: Optional[str] = None   # e.g., \"5 ML\", \"8 ML\", \"12 ML\"
+    
+    # NEW: Specifications field
+    specifications: Optional[Dict[str, Any]] = None  # {\"Fragrance Type\": \"Eau de Parfum\", \"Volume\": \"50 ML\", ...}
+    
     is_featured: bool = False
     is_best_selling: bool = False
     is_new_arrival: bool = False
@@ -37,6 +45,14 @@ class ProductCreate(BaseModel):
     stock: int = 0
     description: str
     fragrance_notes: Optional[str] = None
+    
+    # NEW: Variant fields
+    variant_group: Optional[str] = None
+    variant_name: Optional[str] = None
+    
+    # NEW: Specifications field
+    specifications: Optional[Dict[str, Any]] = None
+    
     is_featured: bool = False
     is_best_selling: bool = False
     is_new_arrival: bool = False
@@ -53,6 +69,14 @@ class ProductUpdate(BaseModel):
     stock: Optional[int] = None
     description: Optional[str] = None
     fragrance_notes: Optional[str] = None
+    
+    # NEW: Variant fields
+    variant_group: Optional[str] = None
+    variant_name: Optional[str] = None
+    
+    # NEW: Specifications field
+    specifications: Optional[Dict[str, Any]] = None
+    
     is_featured: Optional[bool] = None
     is_best_selling: Optional[bool] = None
     is_new_arrival: Optional[bool] = None

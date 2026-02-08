@@ -16,6 +16,9 @@ from controllers.admin_controller import get_admin_router
 from controllers.banner_controller import get_banner_router
 from controllers.upload_controller import get_upload_router
 from controllers.wishlist_controller import get_wishlist_router
+from controllers.product_image_controller import get_product_image_router
+from controllers.product_variant_controller import get_product_variant_router
+from controllers.frequently_bought_controller import get_frequently_bought_router
 
 
 ROOT_DIR = Path(__file__).parent
@@ -47,6 +50,9 @@ api_router.include_router(get_admin_router(db))
 api_router.include_router(get_banner_router(db))
 api_router.include_router(get_upload_router())
 api_router.include_router(get_wishlist_router(db))
+api_router.include_router(get_product_image_router(db))
+api_router.include_router(get_product_variant_router(db))
+api_router.include_router(get_frequently_bought_router(db))
 
 
 # Include the router in the main app

@@ -14,6 +14,12 @@ const ProductsManagement = () => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
+  
+  // NEW: Specifications state
+  const [specifications, setSpecifications] = useState([]);
+  const [specKey, setSpecKey] = useState('');
+  const [specValue, setSpecValue] = useState('');
+  
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -26,7 +32,10 @@ const ProductsManagement = () => {
     stock: 0,
     is_featured: false,
     is_best_selling: false,
-    is_new_arrival: false
+    is_new_arrival: false,
+    // NEW: Variant fields
+    variant_group: '',
+    variant_name: ''
   });
 
   useEffect(() => {
@@ -109,6 +118,23 @@ const ProductsManagement = () => {
     setUploadedImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  // NEW: Add specification
+  const addSpecification = () => {
+    if (!specKey.trim() || !specValue.trim()) {
+      toast.error('Please enter both key and value');
+      return;
+    }
+    
+    setSpecifications(prev => [...prev, { key: specKey.trim(), value: specValue.trim() }]);
+    setSpecKey('');
+    setSpecValue('');
+  };
+
+  // NEW: Remove specification
+  const removeSpecification = (index) => {
+    setSpecifications(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -121,13 +147,24 @@ const ProductsManagement = () => {
 
     try {
       const token = localStorage.getItem('token');
+      
+      // Convert specifications array to object
+      const specificationsObj = {};
+      specifications.forEach(spec => {
+        specificationsObj[spec.key] = spec.value;
+      });
+      
       const productData = {
         ...formData,
         price: parseFloat(formData.price),
         discount: parseFloat(formData.discount),
         stock: parseInt(formData.stock),
         images: uploadedImages,
-        related_products: []
+        related_products: [],
+        // NEW: Add specifications and variant fields
+        specifications: Object.keys(specificationsObj).length > 0 ? specificationsObj : null,
+        variant_group: formData.variant_group || null,
+        variant_name: formData.variant_name || null
       };
 
       if (editingProduct) {
@@ -159,6 +196,16 @@ const ProductsManagement = () => {
   const handleEdit = (product) => {
     setEditingProduct(product);
     setUploadedImages(product.images || []);
+    
+    // Convert specifications object to array for editing
+    const specsArray = [];
+    if (product.specifications) {
+      Object.entries(product.specifications).forEach(([key, value]) => {
+        specsArray.push({ key, value });
+      });
+    }
+    setSpecifications(specsArray);
+    
     setFormData({
       name: product.name,
       slug: product.slug,
@@ -167,11 +214,14 @@ const ProductsManagement = () => {
       price: product.price,
       discount: product.discount,
       description: product.description,
-      fragrance_notes: product.fragrance_notes,
+      fragrance_notes: product.fragrance_notes || '',
       stock: product.stock,
       is_featured: product.is_featured,
       is_best_selling: product.is_best_selling,
-      is_new_arrival: product.is_new_arrival
+      is_new_arrival: product.is_new_arrival,
+      // NEW: Variant fields
+      variant_group: product.variant_group || '',
+      variant_name: product.variant_name || ''
     });
     setShowModal(true);
   };
@@ -196,6 +246,9 @@ const ProductsManagement = () => {
     setShowModal(false);
     setEditingProduct(null);
     setUploadedImages([]);
+    setSpecifications([]);
+    setSpecKey('');
+    setSpecValue('');
     setFormData({
       name: '',
       slug: '',
@@ -208,7 +261,9 @@ const ProductsManagement = () => {
       stock: 0,
       is_featured: false,
       is_best_selling: false,
-      is_new_arrival: false
+      is_new_arrival: false,
+      variant_group: '',
+      variant_name: ''
     });
   };
 
@@ -226,7 +281,7 @@ const ProductsManagement = () => {
         </button>
       </div>
 
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
@@ -235,6 +290,7 @@ const ProductsManagement = () => {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Variant</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -252,7 +308,14 @@ const ProductsManagement = () => {
                 <td className="px-6 py-4 text-sm">₹{product.final_price}</td>
                 <td className="px-6 py-4 text-sm">{product.stock}</td>
                 <td className="px-6 py-4 text-sm">
-                  <div className="flex gap-1">
+                  {product.variant_name && (
+                    <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">
+                      {product.variant_name}
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-sm">
+                  <div className="flex gap-1 flex-wrap">
                     {product.is_featured && <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Featured</span>}
                     {product.is_best_selling && <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Best Selling</span>}
                     {product.is_new_arrival && <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">New</span>}
@@ -283,8 +346,8 @@ const ProductsManagement = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-[#B76E79]">
                 {editingProduct ? 'Edit Product' : 'Add New Product'}
@@ -395,6 +458,38 @@ const ProductsManagement = () => {
                 </div>
               </div>
 
+              {/* NEW: Variant Section */}
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-3 text-[#B76E79]">Variant Information (Optional)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Variant Group</label>
+                    <input
+                      type="text"
+                      name="variant_group"
+                      value={formData.variant_group}
+                      onChange={handleInputChange}
+                      placeholder="e.g., jasmine-perfume"
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Products with same variant_group are variants of each other</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Variant Name</label>
+                    <input
+                      type="text"
+                      name="variant_name"
+                      value={formData.variant_name}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 5 ML, 8 ML, 12 ML"
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Display name for this variant</p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1">Product Images *</label>
                 <div className="border-2 border-dashed rounded-lg p-4">
@@ -458,6 +553,53 @@ const ProductsManagement = () => {
                   placeholder="e.g., Top: Rose, Middle: Jasmine, Base: Musk"
                   className="w-full border rounded-lg px-3 py-2"
                 />
+              </div>
+
+              {/* NEW: Specifications Section */}
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-3 text-[#B76E79]">Product Specifications</h3>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={specKey}
+                    onChange={(e) => setSpecKey(e.target.value)}
+                    placeholder="Key (e.g., Fragrance Type)"
+                    className="flex-1 border rounded-lg px-3 py-2"
+                  />
+                  <input
+                    type="text"
+                    value={specValue}
+                    onChange={(e) => setSpecValue(e.target.value)}
+                    placeholder="Value (e.g., Eau de Parfum)"
+                    className="flex-1 border rounded-lg px-3 py-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={addSpecification}
+                    className="bg-[#B76E79] text-white px-4 py-2 rounded-lg hover:bg-[#A05D6B]"
+                  >
+                    Add
+                  </button>
+                </div>
+                
+                {specifications.length > 0 && (
+                  <div className="space-y-2">
+                    {specifications.map((spec, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                        <div>
+                          <span className="font-medium">{spec.key}:</span> {spec.value}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSpecification(index)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

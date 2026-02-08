@@ -1,19 +1,16 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, status
 from pathlib import Path
-import uuid
-import shutil
 import os
+import cloudinary
+import cloudinary.uploader
+from typing import Optional
 
-# ✅ BASE DIR = backend folder
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# ✅ uploads folder inside backend
-UPLOAD_DIR = BASE_DIR / "uploads"
-
-# ✅ create folders safely (Windows + Linux + Docker)
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-(UPLOAD_DIR / "products").mkdir(parents=True, exist_ok=True)
-(UPLOAD_DIR / "banners").mkdir(parents=True, exist_ok=True)
+# Cloudinary configuration
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', 'dwxl9nxbe'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY', '144991629343521'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET', 'n1DlCwzdB9aWCg7jLK_bHAlQ_vE')
+)
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".jfif"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
@@ -24,6 +21,13 @@ def get_upload_router() -> APIRouter:
     
     @router.post("/image")
     async def upload_image(file: UploadFile = File(...), type: str = "products"):
+        # Check if Cloudinary is configured
+        if not os.environ.get('CLOUDINARY_CLOUD_NAME'):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env file"
+            )
+        
         # Validate file extension
         file_ext = Path(file.filename).suffix.lower()
         if file_ext not in ALLOWED_EXTENSIONS:
@@ -32,48 +36,39 @@ def get_upload_router() -> APIRouter:
                 detail=f"Invalid file type. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
             )
         
-        # Generate unique filename
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        
-        # Determine upload path
-        if type == "banners":
-            upload_path = UPLOAD_DIR / "banners" / unique_filename
-        else:
-            upload_path = UPLOAD_DIR / "products" / unique_filename
-        
-        # Save file
         try:
-            with open(upload_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
+            # Upload to Cloudinary
+            folder = f"mfrida/{type}"
+            result = cloudinary.uploader.upload(
+                file.file,
+                folder=folder,
+                resource_type="image",
+                transformation=[
+                    {'width': 1200, 'height': 1600, 'crop': 'limit'},
+                    {'quality': 'auto:good'}
+                ]
+            )
+            
+            return {
+                "success": True,
+                "image_url": result['secure_url'],
+                "public_id": result['public_id']
+            }
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to upload file: {str(e)}"
+                detail=f"Failed to upload image: {str(e)}"
             )
         finally:
             file.file.close()
-        
-        # Return the URL path
-        backend_url = os.environ.get('BACKEND_PUBLIC_URL', 'http://localhost:8001')
-        image_url = f"{backend_url}/api/uploads/{type}/{unique_filename}"
-        
-        return {
-            "success": True,
-            "image_url": image_url,
-            "filename": unique_filename
-        }
     
     @router.delete("/image")
-    async def delete_image(image_url: str):
-        # Extract filename from URL
+    async def delete_image(public_id: str):
         try:
-            filename = image_url.split("/")[-1]
-            type_folder = image_url.split("/")[-2]
+            # Delete from Cloudinary
+            result = cloudinary.uploader.destroy(public_id)
             
-            file_path = UPLOAD_DIR / type_folder / filename
-            
-            if file_path.exists():
-                file_path.unlink()
+            if result.get('result') == 'ok':
                 return {"success": True, "message": "Image deleted successfully"}
             else:
                 raise HTTPException(
