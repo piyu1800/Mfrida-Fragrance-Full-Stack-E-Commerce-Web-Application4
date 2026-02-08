@@ -1,12 +1,11 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 import { AdminProvider, useAdmin } from './context/AdminContext';
 // STEP 1: Import the Wishlist Provider
 import { WishlistProvider } from './context/WishlistContext';
-
 import Header from './components/Header';
 import Footer from './components/Footer';
 import AdminLayout from './components/AdminLayout';
@@ -47,14 +46,26 @@ const AdminProtectedRoute = ({ children }) => {
   return adminData ? children : <Navigate to="/admin/login" replace />;
 };
 
+// Scroll to Top Component
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
+
 function App() {
   return (
     <AuthProvider>
       <CartProvider>
         {/* STEP 2: Wrap with WishlistProvider here */}
-        <WishlistProvider>
+      <WishlistProvider>
           <AdminProvider>
             <BrowserRouter>
+              <ScrollToTop />
               <div className="App">
                 <Routes>
                   {/* Admin Routes */}

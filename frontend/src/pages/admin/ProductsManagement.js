@@ -13,6 +13,7 @@ const ProductsManagement = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [variantGroups, setVariantGroups] = useState([]);
   const [uploadedImages, setUploadedImages] = useState([]);
   
   // NEW: Specifications state
@@ -41,6 +42,7 @@ const ProductsManagement = () => {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    fetchVariantGroups();
   }, []);
 
   const fetchProducts = async () => {
@@ -64,6 +66,16 @@ const ProductsManagement = () => {
       console.error('Error fetching categories:', error);
     }
   };
+  const fetchVariantGroups = async () => {
+    try {
+      const response = await axios.get(`${API}/products/variant-groups/list`);
+      setVariantGroups(response.data.variant_groups || []);
+    } catch (error) {
+      console.error('Error fetching variant groups:', error);
+    }
+  };
+
+  
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -462,17 +474,25 @@ const ProductsManagement = () => {
               <div className="border-t pt-4">
                 <h3 className="font-medium mb-3 text-[#B76E79]">Variant Information (Optional)</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
+                    <div>
                     <label className="block text-sm font-medium mb-1">Variant Group</label>
                     <input
                       type="text"
                       name="variant_group"
                       value={formData.variant_group}
                       onChange={handleInputChange}
-                      placeholder="e.g., jasmine-perfume"
+                      list="variant-groups-list"
+                      placeholder="e.g., jasmine-perfume (type or select)"
                       className="w-full border rounded-lg px-3 py-2"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Products with same variant_group are variants of each other</p>
+                    <datalist id="variant-groups-list">
+                      {variantGroups.map((group, index) => (
+                        <option key={index} value={group} />
+                      ))}
+                    </datalist>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Products with same variant_group are linked. Select existing or type new.
+                    </p>
                   </div>
 
                   <div>

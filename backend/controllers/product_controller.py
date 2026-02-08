@@ -41,12 +41,22 @@ def get_product_router(db: AsyncIOMotorDatabase) -> APIRouter:
             limit=limit
         )
     
-    @router.get("/slug/{slug}", response_model=Product)
+    @router.get("/slug/{slug}")
     async def get_product_by_slug(slug: str):
         product = await product_service.get_product_by_slug(slug)
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
-        return product
+        
+        # NEW: Get variants for this product
+        variants = []
+        if product.variant_group:
+            variants = await product_service.get_variants_by_group(product.variant_group, product.id)
+        
+        # Return product with variants
+        product_dict = product.model_dump()
+        product_dict['variants'] = [v.model_dump() for v in variants]
+        
+        return product_dict
     
     # NEW: Get product variants endpoint
     @router.get("/{product_id}/variants", response_model=List[Product])
@@ -82,6 +92,13 @@ def get_product_router(db: AsyncIOMotorDatabase) -> APIRouter:
         if not product:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
         return product
+    
+    
+    @router.get("/variant-groups/list")
+    async def get_variant_groups():
+        """Get all unique variant groups for dropdown"""
+        groups = await product_service.get_all_variant_groups()
+        return {"variant_groups": groups}
     
     @router.delete("/{product_id}")
     async def delete_product(product_id: str, current_user: dict = Depends(require_admin)):

@@ -81,6 +81,25 @@ class ProductService:
             return Product(**product)
         return None
     
+    async def get_variants_by_group(self, variant_group: str, exclude_product_id: str) -> List[Product]:
+        """Get all products with same variant_group, excluding current product"""
+        if not variant_group:
+            return []
+        
+        variants = await self.collection.find(
+            {
+                "variant_group": variant_group,
+                "id": {"$ne": exclude_product_id}
+            },
+            {"_id": 0}
+        ).to_list(100)
+        
+        # Sort by extracting numeric value from variant_name (e.g., "5 ML" -> 5)
+        variants_list = [Product(**variant) for variant in variants]
+        variants_list.sort(key=lambda x: float(''.join(filter(str.isdigit, x.variant_name or '0'))) if x.variant_name else 0)
+        
+        return variants_list
+    
     # NEW: Get product variants
     async def get_product_variants(self, product_id: str) -> List[Product]:
             """Get all variants of a product (products with same variant_group), excluding current"""
@@ -153,3 +172,16 @@ class ProductService:
                 "total_reviews": total_reviews
             }}
         )
+   
+   
+   
+    async def get_all_variant_groups(self) -> List[str]:
+        """Get all unique variant_group values from products"""
+        pipeline = [
+            {"$match": {"variant_group": {"$ne": None, "$exists": True}}},
+            {"$group": {"_id": "$variant_group"}},
+            {"$sort": {"_id": 1}}
+        ]
+        
+        result = await self.collection.aggregate(pipeline).to_list(100)
+        return [doc["_id"] for doc in result if doc["_id"]]
