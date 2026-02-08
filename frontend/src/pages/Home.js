@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Star, ShoppingCart, Heart } from 'lucide-react';
@@ -54,19 +54,30 @@ const Home = () => {
     }
   }, [isTransitioning]);
 
-  const handleNext = () => {
-    if (currentBannerIndex === banners.length) {
-      setIsTransitioning(false);
-      setCurrentBannerIndex(0);
-      setTimeout(() => {
-        setIsTransitioning(true);
-        setCurrentBannerIndex(1);
-      }, 50);
-    } else {
-      setCurrentBannerIndex(prev => prev + 1);
-    }
-  };
-
+  // const handleNext = () => {
+  //   if (currentBannerIndex === banners.length) {
+  //     setIsTransitioning(false);
+  //     setCurrentBannerIndex(0);
+  //     setTimeout(() => {
+  //       setIsTransitioning(true);
+  //       setCurrentBannerIndex(1);
+  //     }, 50);
+  //   } else {
+  //     setCurrentBannerIndex(prev => prev + 1);
+  //   }
+  // };
+const handleNext = useCallback(() => {
+  if (currentBannerIndex === banners.length) {
+    setIsTransitioning(false);
+    setCurrentBannerIndex(0);
+    setTimeout(() => {
+      setIsTransitioning(true);
+      setCurrentBannerIndex(1);
+    }, 50);
+  } else {
+    setCurrentBannerIndex(prev => prev + 1);
+  }
+}, [currentBannerIndex, banners.length]);
   const handlePrev = () => {
     if (currentBannerIndex === 0) {
       setIsTransitioning(false);

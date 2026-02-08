@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, ShoppingCart, Heart, ChevronLeft, ChevronRight, Check, Truck, RotateCcw, Shield, User, CreditCard, XCircle, Lock, Package } from 'lucide-react';
@@ -51,9 +51,9 @@ const ProductDetail = () => {
     }
   };
 
-  const fetchProductData = async () => {
-    try {
-      const [productRes, reviewsRes, allProductsRes] = await Promise.all([
+const fetchProductData = useCallback(async () => {
+  try {
+    const [productRes, reviewsRes, allProductsRes] = await Promise.all([
         axios.get(`${API}/products/slug/${slug}`),
         axios.get(`${API}/reviews?product_id=&is_approved=true`),
         axios.get(`${API}/products?limit=20`)
@@ -84,7 +84,8 @@ const ProductDetail = () => {
     } catch (error) {
       console.error('Error fetching product:', error);
     }
-  };
+    }, [slug]);
+  
 
   const handleAddToCart = () => {
     addToCart(product.id, quantity);

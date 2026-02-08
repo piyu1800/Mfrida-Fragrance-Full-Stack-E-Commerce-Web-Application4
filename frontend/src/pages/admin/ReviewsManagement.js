@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Star, Check, X, Trash2, Filter } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -35,9 +35,9 @@ const ReviewsManagement = () => {
     }
   };
 
-  const fetchReviews = async () => {
-    setLoading(true);
-    try {
+const fetchReviews = useCallback(async () => {
+  setLoading(true);
+  try {
       let url = `${API}/reviews?limit=1000`;
       
       if (filter === 'pending') {
@@ -56,8 +56,8 @@ const ReviewsManagement = () => {
       toast.error('Failed to load reviews');
     } finally {
       setLoading(false);
-    }
-  };
+  }
+}, [filter]);
 
   const handleApprove = async (reviewId) => {
     try {

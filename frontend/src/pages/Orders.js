@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import axios from 'axios';
@@ -15,19 +15,30 @@ const Orders = () => {
     fetchOrders();
   }, []);
 
-  const fetchOrders = async () => {
-    try {
-      const response = await axios.get(`${API}/orders`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setOrders(response.data);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // const fetchOrders = async () => {
+  //   try {
+  //     const response = await axios.get(`${API}/orders`, {
+  //       headers: { Authorization: `Bearer ${token}` }
+  //     });
+  //     setOrders(response.data);
+  //   } catch (error) {
+  //     console.error('Error fetching orders:', error);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+const fetchOrders = useCallback(async () => {
+  try {
+    const response = await axios.get(`${API}/orders`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setOrders(response.data);
+  } catch (error) {
+    console.error('Error fetching orders:', error);
+  } finally {
+    setLoading(false);
+  }
+}, [token]);
   const getStatusColor = (status) => {
     const colors = {
       pending: 'text-yellow-700 bg-yellow-100',

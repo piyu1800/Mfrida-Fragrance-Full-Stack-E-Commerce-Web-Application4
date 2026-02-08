@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Star, SlidersHorizontal } from 'lucide-react';
@@ -49,7 +49,7 @@ const Products = () => {
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -77,8 +77,8 @@ const Products = () => {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
-    }
-  };
+   }
+}, [filters, searchParams, categories]);
 
   const handleSortChange = (e) => {
     const value = e.target.value;
