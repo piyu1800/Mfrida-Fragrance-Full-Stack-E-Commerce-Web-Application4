@@ -10,8 +10,11 @@ from passlib.context import CryptContext
 load_dotenv(Path(__file__).parent / '.env')
 
 mongo_url = os.environ['MONGO_URL']
+print("************Mongo_url***********", mongo_url)
 client = AsyncIOMotorClient(mongo_url)
+
 db = client[os.environ['DB_NAME']]
+print("************* database *********", db)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
