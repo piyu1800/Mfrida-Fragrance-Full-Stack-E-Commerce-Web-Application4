@@ -24,8 +24,15 @@ const ProductDetail = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const { addToCart } = useCart();
   const [activeTab, setActiveTab] = useState('reviews');
+  const [productVariants, setProductVariants] = useState([]);
 
   useEffect(() => {
+    // Reset states when slug changes
+    setProduct(null);
+    setProductVariants([]);
+    setSelectedImage(0);
+    setQuantity(1);
+    
     fetchProductData();
   }, [slug]);
 
@@ -55,6 +62,16 @@ const ProductDetail = () => {
       setProduct(productRes.data);
       const productReviews = reviewsRes.data.filter(r => r.product_id === productRes.data.id);
       setReviews(productReviews);
+
+      // Fetch product variants (other sizes/variants of the same product)
+      if (productRes.data.category_id) {
+        const variantsRes = await axios.get(`${API}/products?category_id=${productRes.data.category_id}&limit=20`);
+        const variants = variantsRes.data.filter(p => 
+          p.id !== productRes.data.id && 
+          p.name.toLowerCase().includes(productRes.data.name.toLowerCase().split(' ')[0])
+        );
+        setProductVariants(variants);
+      }
 
       if (productRes.data.category_id) {
         const relatedRes = await axios.get(`${API}/products?category_id=${productRes.data.category_id}&limit=8`);
@@ -224,6 +241,174 @@ const ProductDetail = () => {
                 <h3 className="text-sm uppercase tracking-[0.2em] mb-3 text-[#D4AF37] font-semibold">Fragrance Notes</h3>
                 <p className="text-[#585858]">{product.fragrance_notes}</p>
               </div>
+            )}
+
+            {/* Variant Selector - Enhanced Design */}
+            {productVariants.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mb-10"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-[#1A1A1A] tracking-wide">
+                    Choose Your Size
+                  </h3>
+                  <span className="text-sm text-[#585858]">
+                    {productVariants.length + 1} sizes available
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {/* Current Product - Always First */}
+                  <motion.div
+                    whileHover={{ y: -5 }}
+                    transition={{ duration: 0.3 }}
+                    className="relative bg-gradient-to-br from-[#D4AF37]/20 via-[#F5F2EB] to-white rounded-2xl p-4 border-3 border-[#D4AF37] shadow-lg overflow-hidden group"
+                    data-testid="current-variant"
+                  >
+                    {/* Shine Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                    
+                    {/* Current Badge */}
+                    <div className="absolute top-2 right-2 z-10">
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                        className="bg-[#D4AF37] text-white text-xs font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1"
+                      >
+                        <Check size={12} />
+                        SELECTED
+                      </motion.div>
+                    </div>
+
+                    {/* Product Image */}
+                    <div className="relative aspect-square mb-3 rounded-xl overflow-hidden bg-white shadow-inner">
+                      <img
+                        src={product.images[0]}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent to-[#D4AF37]"></div>
+                        <p className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider">
+                          {product.variant_name || 'Default'}
+                        </p>
+                        <div className="h-px flex-1 bg-gradient-to-l from-transparent to-[#D4AF37]"></div>
+                      </div>
+                      
+                      <p className="text-center text-lg font-bold text-[#1A1A1A]">
+                        ₹{product.final_price.toFixed(2)}
+                      </p>
+                      
+                      {product.discount > 0 && (
+                        <p className="text-center text-xs text-gray-500 line-through">
+                          ₹{product.price.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+
+                  {/* Other Variants */}
+                  {productVariants.map((variant, index) => (
+                    <motion.div
+                      key={variant.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ y: -5 }}
+                    >
+                      <Link
+                        to={`/product/${variant.slug}`}
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="block relative bg-gradient-to-br from-white to-[#F5F2EB] rounded-2xl p-4 border-2 border-gray-200 hover:border-[#D4AF37] shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                        data-testid={`variant-option-${variant.id}`}
+                      >
+                        {/* Hover Shine Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#D4AF37]/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                        
+                        {/* Discount Badge */}
+                        {variant.discount > 0 && (
+                          <div className="absolute top-2 right-2 z-10 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md">
+                            {variant.discount}% OFF
+                          </div>
+                        )}
+
+                        {/* Product Image */}
+                        <div className="relative aspect-square mb-3 rounded-xl overflow-hidden bg-white shadow-inner">
+                          <img
+                            src={variant.images[0]}
+                            alt={variant.name}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent group-hover:from-black/10 transition-all duration-300"></div>
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-gray-300 group-hover:to-[#D4AF37] transition-colors duration-300"></div>
+                            <p className="text-xs font-bold text-[#585858] group-hover:text-[#D4AF37] uppercase tracking-wider transition-colors duration-300">
+                              {variant.variant_name || 'Variant'}
+                            </p>
+                            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-gray-300 group-hover:to-[#D4AF37] transition-colors duration-300"></div>
+                          </div>
+                          
+                          <p className="text-center text-lg font-bold text-[#1A1A1A] group-hover:text-[#D4AF37] transition-colors duration-300">
+                            ₹{variant.final_price.toFixed(2)}
+                          </p>
+                          
+                          {variant.discount > 0 && (
+                            <p className="text-center text-xs text-gray-500 line-through">
+                              ₹{variant.price.toFixed(2)}
+                            </p>
+                          )}
+
+                          {/* Stock Status */}
+                          {variant.stock > 0 ? (
+                            <p className="text-center text-xs text-green-600 font-semibold">
+                              In Stock ({variant.stock})
+                            </p>
+                          ) : (
+                            <p className="text-center text-xs text-red-600 font-semibold">
+                              Out of Stock
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Hover Arrow */}
+                        <motion.div
+                          className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          initial={{ x: -10 }}
+                          whileHover={{ x: 0 }}
+                        >
+                          <ChevronRight className="text-[#D4AF37]" size={20} />
+                        </motion.div>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Size Guide Hint */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                  className="mt-6 text-center"
+                >
+                  <p className="text-sm text-[#585858] flex items-center justify-center gap-2">
+                    <Shield size={16} className="text-[#D4AF37]" />
+                    All sizes include the same premium fragrance
+                  </p>
+                </motion.div>
+              </motion.div>
             )}
 
             {/* Stock Status */}

@@ -83,21 +83,30 @@ class ProductService:
     
     # NEW: Get product variants
     async def get_product_variants(self, product_id: str) -> List[Product]:
-        """Get all variants of a product (products with same variant_group)"""
-        product = await self.get_product_by_id(product_id)
-        if not product or not product.variant_group:
-            return []
-        
-        # Find all products with the same variant_group, excluding the current product
-        variants = await self.collection.find(
-            {
-                "variant_group": product.variant_group,
-                "id": {"$ne": product_id}
-            },
-            {"_id": 0}
-        ).to_list(100)
-        
-        return [Product(**variant) for variant in variants]
+            """Get all variants of a product (products with same variant_group), excluding current"""
+            product = await self.get_product_by_id(product_id)
+            print("***********************************")
+            print(product)
+            if not product or not product.variant_group:
+                return []
+            print("-----------------product varient------------------", product.variant_group)
+            
+            # Find all products with the same variant_group, excluding the current product
+            variants = await self.collection.find(
+                {
+                    "variant_group": product.variant_group,
+                    "id": {"$ne": product_id}
+                },
+                {"_id": 0}
+            ).to_list(100)
+            print("----------------varients-------------------")
+            print(variants)
+            
+            # Sort by variant_name if available (e.g., "5 ML", "8 ML", "12 ML")
+            variants_list = [Product(**variant) for variant in variants]
+            variants_list.sort(key=lambda x: float(''.join(filter(str.isdigit, x.variant_name or '0'))) if x.variant_name else 0)
+            
+            return variants_list
     
     # NEW: Get related products by IDs
     async def get_related_products_by_ids(self, product_ids: List[str]) -> List[Product]:
