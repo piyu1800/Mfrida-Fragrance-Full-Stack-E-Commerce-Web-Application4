@@ -11,9 +11,6 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchOrders();
-  }, []);
 
   // const fetchOrders = async () => {
   //   try {
@@ -39,6 +36,11 @@ const fetchOrders = useCallback(async () => {
     setLoading(false);
   }
 }, [token]);
+
+
+  useEffect(() => {
+  fetchOrders();
+}, [fetchOrders]);
   const getStatusColor = (status) => {
     const colors = {
       pending: 'text-yellow-700 bg-yellow-100',

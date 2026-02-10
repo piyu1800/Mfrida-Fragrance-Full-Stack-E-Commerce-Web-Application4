@@ -29,9 +29,7 @@ const Products = () => {
     fetchCategories();
   }, []);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [filters, searchParams]);
+ 
 
   const handleAddToCart = (e, product) => {
     e.preventDefault(); // Prevent navigation to product detail
@@ -79,6 +77,11 @@ const Products = () => {
       setLoading(false);
    }
 }, [filters, searchParams, categories]);
+
+
+useEffect(() => {
+  fetchProducts();
+}, [filters, searchParams, fetchProducts]);
 
   const handleSortChange = (e) => {
     const value = e.target.value;

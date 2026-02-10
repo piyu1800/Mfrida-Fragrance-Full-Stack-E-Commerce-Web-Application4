@@ -12,10 +12,7 @@ const ReviewsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, approved
 
-  useEffect(() => {
-    fetchReviews();
-    fetchProducts();
-  }, [filter]);
+ 
 
   const getAuthHeader = () => {
     const token = localStorage.getItem('token');
@@ -58,6 +55,10 @@ const fetchReviews = useCallback(async () => {
       setLoading(false);
   }
 }, [filter]);
+useEffect(() => {
+  fetchReviews();
+  fetchProducts();
+}, [filter, fetchReviews]);
 
   const handleApprove = async (reviewId) => {
     try {

@@ -26,15 +26,7 @@ const ProductDetail = () => {
   const [activeTab, setActiveTab] = useState('reviews');
   const [variants, setVariants] = useState([]);
 
-  useEffect(() => {
-    // Reset states when slug changes
-    setProduct(null);
-    setVariants([]);
-    setSelectedImage(0);
-    setQuantity(1);
-    
-    fetchProductData();
-  }, [slug]);
+  
 
   const handleWishlistToggle = async () => {
     if (!user) {
@@ -85,7 +77,16 @@ const fetchProductData = useCallback(async () => {
       console.error('Error fetching product:', error);
     }
     }, [slug]);
-  
+    useEffect(() => {
+    // Reset states when slug changes
+    setProduct(null);
+    setVariants([]);
+    setSelectedImage(0);
+    setQuantity(1);
+    
+    fetchProductData();
+  }, [slug, fetchProductData]);
+    
 
   const handleAddToCart = () => {
     addToCart(product.id, quantity);

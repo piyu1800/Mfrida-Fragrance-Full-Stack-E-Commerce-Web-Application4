@@ -33,16 +33,29 @@ const Home = () => {
     fetchHomepageData();
   }, []);
 
+  const handleNext = useCallback(() => {
+  if (currentBannerIndex === banners.length) {
+    setIsTransitioning(false);
+    setCurrentBannerIndex(0);
+    setTimeout(() => {
+      setIsTransitioning(true);
+      setCurrentBannerIndex(1);
+    }, 50);
+  } else {
+    setCurrentBannerIndex(prev => prev + 1);
+  }
+}, [currentBannerIndex, banners.length]);
+
   // Auto-rotation for banners with infinite loop
   useEffect(() => {
-    if (banners && banners.length > 1) {
-      const interval = setInterval(() => {
-        handleNext();
-      }, 5000); // Change banner every 5 seconds
+  if (banners && banners.length > 1) {
+    const interval = setInterval(() => {
+      handleNext();
+    }, 5000); // Change banner every 5 seconds
 
-      return () => clearInterval(interval);
-    }
-  }, [banners, currentBannerIndex]);
+    return () => clearInterval(interval);
+  }
+}, [banners, currentBannerIndex, handleNext]);
 
   // Handle transition end for infinite loop
   useEffect(() => {
@@ -66,18 +79,7 @@ const Home = () => {
   //     setCurrentBannerIndex(prev => prev + 1);
   //   }
   // };
-const handleNext = useCallback(() => {
-  if (currentBannerIndex === banners.length) {
-    setIsTransitioning(false);
-    setCurrentBannerIndex(0);
-    setTimeout(() => {
-      setIsTransitioning(true);
-      setCurrentBannerIndex(1);
-    }, 50);
-  } else {
-    setCurrentBannerIndex(prev => prev + 1);
-  }
-}, [currentBannerIndex, banners.length]);
+
   const handlePrev = () => {
     if (currentBannerIndex === 0) {
       setIsTransitioning(false);
