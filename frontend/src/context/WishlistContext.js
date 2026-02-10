@@ -1,7 +1,7 @@
 
 
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect , useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from './AuthContext';
 import { toast } from 'sonner';
@@ -24,31 +24,33 @@ export const WishlistProvider = ({ children }) => {
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchWishlist();
-    } else {
-      setWishlist([]);
-    }
-  }, [user]);
+
 
   const getAuthHeader = () => {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  const fetchWishlist = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API}/wishlist`, getAuthHeader());
-      setWishlist(response.data);
-    } catch (error) {
-      console.error('Error fetching wishlist:', error);
-      setWishlist([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchWishlist = useCallback(async () => {
+  try {
+    setLoading(true);
+    const response = await axios.get(`${API}/wishlist`, getAuthHeader());
+    setWishlist(response.data);
+  } catch (error) {
+    console.error('Error fetching wishlist:', error);
+    setWishlist([]);
+  } finally {
+    setLoading(false);
+  }
+}, []);
+
+useEffect(() => {
+  if (user) {
+    fetchWishlist();
+  } else {
+    setWishlist([]);
+  }
+}, [user, fetchWishlist]);
 
   const addToWishlist = async (productId) => {
     if (!user) {
