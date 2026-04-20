@@ -18,6 +18,7 @@ import Auth from './pages/Auth';
 import Orders from './pages/Orders';
 // STEP 3: Import the Wishlist Page
 import Wishlist from './pages/Wishlist'; 
+import PaymentStatus from './pages/PaymentStatus'; 
 
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -104,6 +105,7 @@ function App() {
                           <Route path="/checkout" element={<Checkout />} />
                           <Route path="/auth" element={<Auth />} />
                           <Route path="/orders" element={<Orders />} />
+                          <Route path="/payment-status" element={<PaymentStatus />} />
                         </Routes>
                       </main>
                       <Footer />

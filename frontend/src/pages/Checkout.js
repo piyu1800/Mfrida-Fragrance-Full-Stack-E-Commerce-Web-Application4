@@ -4,17 +4,14 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { toast } from 'sonner';
-import useRazorpay from 'react-razorpay';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
-const RAZORPAY_KEY_ID = process.env.REACT_APP_RAZORPAY_KEY_ID || 'rzp_test_demo';
 
 const Checkout = () => {
-  const { cartItems, getCartTotal, clearCart } = useCart();
+  const { cartItems, getCartTotal } = useCart();
   const { user, token } = useAuth();
   const navigate = useNavigate();
-  const [Razorpay] = useRazorpay();
   const [loading, setLoading] = useState(false);
   const [address, setAddress] = useState({
     street: '',
@@ -29,6 +26,7 @@ const Checkout = () => {
     setLoading(true);
 
     try {
+      // Create order
       const orderData = {
         items: cartItems.map(item => ({
           product_id: item.id,
@@ -46,51 +44,19 @@ const Checkout = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      // Create PhonePe payment
       const paymentResponse = await axios.post(
-        `${API}/orders/create-payment?order_id=${orderResponse.data.id}`,
+        `${API}/orders/create-phonepe-payment?order_id=${orderResponse.data.id}`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const options = {
-        key: RAZORPAY_KEY_ID,
-        amount: paymentResponse.data.amount,
-        currency: paymentResponse.data.currency,
-        order_id: paymentResponse.data.razorpay_order_id,
-        name: 'Mfrida Fragrance',
-        description: 'Purchase of luxury fragrances',
-        handler: async (response) => {
-          try {
-            await axios.post(
-              `${API}/orders/verify-payment`,
-              {
-                order_id: orderResponse.data.id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            toast.success('Payment successful!');
-            clearCart();
-            navigate('/orders');
-          } catch (error) {
-            toast.error('Payment verification failed');
-          }
-        },
-        prefill: {
-          name: user.name,
-          email: user.email,
-          contact: address.phone
-        },
-        theme: {
-          color: '#B76E79'
-        }
-      };
-
-      const razorpayInstance = new Razorpay(options);
-      razorpayInstance.open();
+      if (paymentResponse.data.success) {
+        // Redirect to PhonePe payment page
+        window.location.href = paymentResponse.data.redirect_url;
+      } else {
+        toast.error('Failed to initiate payment');
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to create order');
     } finally {

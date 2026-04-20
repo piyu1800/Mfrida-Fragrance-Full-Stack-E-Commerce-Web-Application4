@@ -46,9 +46,10 @@ class Order(BaseModel):
     payment_status: PaymentStatus = PaymentStatus.PENDING
     payment_method: Optional[str] = None  # upi, card, netbanking, wallet
     payment_id: Optional[str] = None
-    razorpay_order_id: Optional[str] = None
-    razorpay_payment_id: Optional[str] = None
-    razorpay_signature: Optional[str] = None
+    payment_gateway: Optional[str] = "phonepe"  # phonepe
+    phonepe_merchant_transaction_id: Optional[str] = None
+    phonepe_transaction_id: Optional[str] = None
+    phonepe_response_code: Optional[str] = None
     tracking_updates: List[TrackingUpdate] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

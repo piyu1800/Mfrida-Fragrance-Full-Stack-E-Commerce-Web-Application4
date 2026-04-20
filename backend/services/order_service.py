@@ -72,13 +72,21 @@ class OrderService:
         
         return await self.get_order_by_id(order_id)
     
-    async def update_payment_info(self, order_id: str, razorpay_order_id: str, razorpay_payment_id: str, razorpay_signature: str, payment_method: str = None):
+    async def update_payment_info_phonepe(
+        self, 
+        order_id: str, 
+        merchant_transaction_id: str, 
+        transaction_id: str, 
+        response_code: str,
+        payment_method: str = None
+    ):
         update_data = {
-            "razorpay_order_id": razorpay_order_id,
-            "razorpay_payment_id": razorpay_payment_id,
-            "razorpay_signature": razorpay_signature,
+            "phonepe_merchant_transaction_id": merchant_transaction_id,
+            "phonepe_transaction_id": transaction_id,
+            "phonepe_response_code": response_code,
             "payment_status": PaymentStatus.COMPLETED,
             "order_status": OrderStatus.CONFIRMED,
+            "payment_gateway": "phonepe",
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
         
@@ -88,7 +96,27 @@ class OrderService:
         # Add initial tracking update
         tracking_update = {
             "status": "confirmed",
-            "message": "Order confirmed and payment received",
+            "message": "Order confirmed and payment received via PhonePe",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await self.collection.update_one(
+            {"id": order_id},
+            {
+                "$set": update_data,
+                "$push": {"tracking_updates": tracking_update}
+            }
+        )
+    
+    async def update_payment_failed(self, order_id: str, error_message: str = "Payment failed"):
+        update_data = {
+            "payment_status": PaymentStatus.FAILED,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        tracking_update = {
+            "status": "failed",
+            "message": error_message,
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
         

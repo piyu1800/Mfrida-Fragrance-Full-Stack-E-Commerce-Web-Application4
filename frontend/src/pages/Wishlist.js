@@ -1,25 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Trash2, ShoppingCart, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
-import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { toast } from 'sonner';
+import ProductCard from '../components/ProductCard';
 
 const Wishlist = () => {
-  const { wishlist, removeFromWishlist, loading } = useWishlist();
-  const { addToCart } = useCart();
+  const { wishlist, loading } = useWishlist();
   const { user } = useAuth();
-
-  const handleRemove = async (productId) => {
-    await removeFromWishlist(productId);
-  };
-
-  const handleAddToCart = (product) => {
-    addToCart(product, 1);
-    toast.success('Added to cart!');
-  };
 
   if (!user) {
     return (

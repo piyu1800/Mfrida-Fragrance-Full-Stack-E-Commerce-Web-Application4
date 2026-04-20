@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ArrowRight, Star, ShoppingCart, Heart } from 'lucide-react';
 import axios from 'axios';
-import { useCart } from '../context/CartContext';
-import { useWishlist } from '../context/WishlistContext';
-import { toast } from 'sonner';
+import ProductCard from '../components/ProductCard';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, EffectCoverflow } from 'swiper/modules';
 import 'swiper/css';
@@ -17,8 +15,6 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const Home = () => {
-  const { addToCart } = useCart();
-  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const [homepage, setHomepage] = useState(null);
   const [categories, setCategories] = useState([]);
   const [banners, setBanners] = useState([]);
@@ -119,125 +115,7 @@ const Home = () => {
       console.error('Error fetching homepage data:', error);
     }
   };
- const ProductCard = ({ product }) => {
-    const [isHovered, setIsHovered] = useState(false);
-    const inWishlist = isInWishlist(product.id);
-
-    const handleAddToCart = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      addToCart(product.id, 1);
-      toast.success('Added to cart!', {
-        description: `${product.name} has been added to your cart.`
-      });
-    };
-
-    const handleWishlistToggle = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (inWishlist) {
-        removeFromWishlist(product.id);
-        toast.info('Removed from wishlist');
-      } else {
-        addToWishlist(product.id);
-        toast.success('Added to wishlist!');
-      }
-    };
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.5 }}
-        className="premium-card group relative"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        data-testid={`product-card-${product.slug}`}
-      >
-        <Link to={`/product/${product.slug}`} className="block">
-          {/* Image Container with Gradient Overlay */}
-          <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-gradient-to-br from-[#F5F2EB] to-[#E8DCC8] mb-4 shadow-lg">
-            <img
-              src={product.images[0]}
-              alt={product.name}
-              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110"
-            />
-            
-            {/* Gradient Overlay on Hover */}
-            <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}></div>
-            
-            {/* Discount Badge */}
-            {product.discount > 0 && (
-              <div className="absolute top-4 left-4 bg-gradient-to-r from-[#D4AF37] to-[#F4E4BC] text-[#1A1A1A] text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider shadow-lg">
-                {product.discount}% OFF
-              </div>
-            )}
-
-            {/* Wishlist Button */}
-            <button
-              onClick={handleWishlistToggle}
-              className={`absolute top-4 right-4 p-2.5 rounded-full backdrop-blur-md transition-all duration-300 shadow-lg ${
-                inWishlist 
-                  ? 'bg-[#D4AF37] text-white' 
-                  : 'bg-white/90 text-[#1A1A1A] hover:bg-[#D4AF37] hover:text-white'
-              }`}
-            >
-              <Heart size={18} className={inWishlist ? 'fill-current' : ''} />
-            </button>
-
-            {/* Quick Add to Cart Button - Shows on Hover */}
-            <div className={`absolute bottom-4 left-4 right-4 transition-all duration-300 ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              <button
-                onClick={handleAddToCart}
-                className="w-full btn-golden text-[#1A1A1A] font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-xl"
-              >
-                <ShoppingCart size={18} />
-                <span className="uppercase tracking-wider text-sm">Add to Cart</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Product Info with Premium Styling */}
-          <div className="space-y-2 px-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold">{product.brand}</p>
-            <h3 className="text-base font-semibold text-[#1A1A1A] group-hover:text-[#D4AF37] transition-colors line-clamp-2 min-h-[3rem]">
-              {product.name}
-            </h3>
-            
-            {/* Rating */}
-            {product.total_reviews > 0 && (
-              <div className="flex items-center gap-1">
-                <div className="flex">
-                  {[...Array(5)].map((_, i) => (
-                    <Star 
-                      key={i} 
-                      size={14} 
-                      className={i < Math.floor(product.average_rating) ? 'fill-[#D4AF37] text-[#D4AF37]' : 'text-gray-300'}
-                    />
-                  ))}
-                </div>
-                <span className="text-sm font-medium text-[#1A1A1A]">{product.average_rating}</span>
-                <span className="text-xs text-[#585858]">({product.total_reviews})</span>
-              </div>
-            )}
-
-            {/* Price */}
-            <div className="flex items-center gap-3 pt-1">
-              {product.discount > 0 ? (
-                <>
-                  <p className="text-xl font-bold text-[#D4AF37]">₹{product.final_price.toFixed(2)}</p>
-                  <p className="text-sm text-[#585858] line-through">₹{product.price.toFixed(2)}</p>
-                </>
-              ) : (
-                <p className="text-xl font-bold text-[#D4AF37]">₹{product.price.toFixed(2)}</p>
-              )}
-            </div>
-          </div>
-        </Link>
-      </motion.div>
-    );
-  };
+  
   // Create extended banners array for infinite loop
   const extendedBanners = banners.length > 0 ? [banners[banners.length - 1], ...banners, banners[0]] : [];
 
@@ -501,44 +379,36 @@ const Home = () => {
               <p className="text-white/70 text-lg max-w-2xl mx-auto">Discover our latest collection of exquisite fragrances</p>
             </motion.div>
 
-            {/* SWIPER CAROUSEL - TITAN STYLE */}
+            {/* SWIPER CAROUSEL - RIGHT TO LEFT WITH CONTINUOUS LOOP */}
             <div className="relative">
               <Swiper
-                modules={[Navigation, Pagination, Autoplay, EffectCoverflow]}
-                effect="coverflow"
+                modules={[Autoplay, Pagination]}
                 grabCursor={true}
-                centeredSlides={true}
+                centeredSlides={false}
                 slidesPerView="auto"
-                coverflowEffect={{
-                  rotate: 0,
-                  stretch: 0,
-                  depth: 100,
-                  modifier: 2.5,
-                  slideShadows: false,
-                }}
+                loop={true}
                 autoplay={{
-                  delay: 3500,
+                  delay: 0,
                   disableOnInteraction: false,
+                  reverseDirection: true,
                 }}
-                navigation={{
-                  nextEl: '.swiper-button-next-custom',
-                  prevEl: '.swiper-button-prev-custom',
-                }}
+                speed={5000}
+                freeMode={true}
                 pagination={{
                   clickable: true,
                   dynamicBullets: true,
                 }}
                 breakpoints={{
                   320: {
-                    slidesPerView: 1,
+                    slidesPerView: 1.5,
                     spaceBetween: 20,
                   },
                   640: {
-                    slidesPerView: 2,
+                    slidesPerView: 2.5,
                     spaceBetween: 30,
                   },
                   1024: {
-                    slidesPerView: 3,
+                    slidesPerView: 3.5,
                     spaceBetween: 40,
                   },
                   1280: {
@@ -548,93 +418,13 @@ const Home = () => {
                 }}
                 className="new-arrivals-swiper py-12"
               >
-                {newArrivals.map((product) => (
-                  <SwiperSlide key={product.id} className="!h-auto">
-                    <Link 
-                      to={`/product/${product.slug}`}
-                      className="block group"
-                      data-testid={`new-arrival-${product.slug}`}
-                    >
-                      <motion.div
-                        whileHover={{ y: -10 }}
-                        transition={{ duration: 0.3 }}
-                        className="relative h-[450px] md:h-[550px] rounded-2xl overflow-hidden shadow-2xl"
-                      >
-                        {/* Product Image */}
-                        <img
-                          src={product.images[0]}
-                          alt={product.name}
-                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                        />
-
-                        {/* Dark Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent"></div>
-
-                        {/* Discount Badge */}
-                        {product.discount > 0 && (
-                          <div className="absolute top-4 right-4 bg-gradient-to-r from-[#D4AF37] to-[#F4E4BC] text-[#1A1A1A] text-xs font-bold px-4 py-2 rounded-full uppercase tracking-wider shadow-lg z-10">
-                            {product.discount}% OFF
-                          </div>
-                        )}
-
-                        {/* Product Info - Bottom */}
-                        <div className="absolute bottom-0 left-0 right-0 p-6 text-white z-10">
-                          <p className="text-xs uppercase tracking-[0.2em] text-[#D4AF37] font-semibold mb-2">
-                            {product.brand}
-                          </p>
-                          <h3 className="text-xl md:text-2xl font-bold mb-3 line-clamp-2">
-                            {product.name}
-                          </h3>
-
-                          {/* Rating */}
-                          {product.total_reviews > 0 && (
-                            <div className="flex items-center gap-2 mb-4">
-                              <div className="flex">
-                                {[...Array(5)].map((_, i) => (
-                                  <Star 
-                                    key={i} 
-                                    size={14} 
-                                    className={i < Math.floor(product.average_rating) ? 'fill-[#D4AF37] text-[#D4AF37]' : 'text-gray-400'}
-                                  />
-                                ))}
-                              </div>
-                              <span className="text-sm">{product.average_rating}</span>
-                              <span className="text-xs text-white/70">({product.total_reviews})</span>
-                            </div>
-                          )}
-
-                          {/* Add to Cart Button */}
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              addToCart(product.id, 1);
-                              toast.success('Added to cart!', {
-                                description: `${product.name} has been added to your cart.`
-                              });
-                            }}
-                            className="w-full btn-golden text-[#1A1A1A] font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                          >
-                            <ShoppingCart size={18} />
-                            <span className="uppercase tracking-wider text-sm">Add to Cart</span>
-                          </button>
-                        </div>
-
-                        {/* Shine Effect on Hover */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"></div>
-                      </motion.div>
-                    </Link>
+                {/* Duplicate items for seamless loop */}
+                {[...newArrivals, ...newArrivals].map((product, index) => (
+                  <SwiperSlide key={`${product.id}-${index}`} className="!h-auto">
+                    <ProductCard product={product} showBuyNow={false} />
                   </SwiperSlide>
                 ))}
               </Swiper>
-
-              {/* Custom Navigation Buttons */}
-              <button className="swiper-button-prev-custom absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-[#D4AF37] hover:bg-[#F4E4BC] text-[#1A1A1A] p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-110">
-                <ArrowRight size={24} className="rotate-180" />
-              </button>
-              <button className="swiper-button-next-custom absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-[#D4AF37] hover:bg-[#F4E4BC] text-[#1A1A1A] p-4 rounded-full shadow-2xl transition-all duration-300 hover:scale-110">
-                <ArrowRight size={24} />
-              </button>
             </div>
           </div>
         </section>

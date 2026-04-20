@@ -25,6 +25,7 @@ const ProductDetail = () => {
   const { addToCart } = useCart();
   const [activeTab, setActiveTab] = useState('reviews');
   const [variants, setVariants] = useState([]);
+  const [showFullScreenImage, setShowFullScreenImage] = useState(false);
 
   
 
@@ -96,16 +97,15 @@ const fetchProductData = useCallback(async () => {
   };
 
   const handleBuyNow = () => {
-    addToCart(product.id, quantity);
+    addToCart(product, quantity);
     navigate('/checkout');
   };
 
-  const nextImage = () => {
-    setSelectedImage((prev) => (prev + 1) % product.images.length);
-  };
-
-  const prevImage = () => {
-    setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length);
+  const handleImageClick = () => {
+    // Only show full screen on mobile/tablet
+    if (window.innerWidth < 1024) {
+      setShowFullScreenImage(true);
+    }
   };
 
   const getRatingBreakdown = () => {
@@ -136,11 +136,12 @@ const fetchProductData = useCallback(async () => {
           <div>
             {/* Main Image with Enhanced Animation */}
             <motion.div 
-              className="relative bg-gradient-to-br from-[#F5F2EB] via-[#FFFBF5] to-[#E8DCC8] overflow-hidden rounded-2xl shadow-2xl mb-6"
+              className="relative bg-gradient-to-br from-[#F5F2EB] via-[#FFFBF5] to-[#E8DCC8] overflow-hidden rounded-2xl shadow-2xl mb-6 cursor-pointer lg:cursor-default"
               style={{ height: '600px' }}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
+              onClick={handleImageClick}
             >
               <AnimatePresence mode="wait">
                 <motion.img
@@ -169,29 +170,10 @@ const fetchProductData = useCallback(async () => {
                 {selectedImage + 1} / {product.images.length}
               </motion.div>
               
-              {/* Navigation Arrows */}
-              {product.images.length > 1 && (
-                <>
-                  <motion.button
-                    onClick={prevImage}
-                    whileHover={{ scale: 1.1, x: -5 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-[#D4AF37] hover:text-white p-3 rounded-full transition-all shadow-xl backdrop-blur-sm border-2 border-[#D4AF37]/20"
-                    data-testid="prev-image-button"
-                  >
-                    <ChevronLeft size={24} />
-                  </motion.button>
-                  <motion.button
-                    onClick={nextImage}
-                    whileHover={{ scale: 1.1, x: 5 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-[#D4AF37] hover:text-white p-3 rounded-full transition-all shadow-xl backdrop-blur-sm border-2 border-[#D4AF37]/20"
-                    data-testid="next-image-button"
-                  >
-                    <ChevronRight size={24} />
-                  </motion.button>
-                </>
-              )}
+              {/* Tap to view hint for mobile */}
+              <div className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-xs text-[#1A1A1A] font-semibold shadow-lg">
+                Tap to view full screen
+              </div>
             </motion.div>
 
             {/* Thumbnails - Grid Layout with Animations */}
@@ -770,6 +752,72 @@ const fetchProductData = useCallback(async () => {
           </div>
         )}
       </div>
+
+      {/* Full Screen Image Modal */}
+      <AnimatePresence>
+        {showFullScreenImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setShowFullScreenImage(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.8 }}
+              className="relative w-full h-full flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowFullScreenImage(false)}
+                className="absolute top-4 right-4 z-10 bg-white/90 hover:bg-white text-[#1A1A1A] p-3 rounded-full shadow-xl transition-all"
+              >
+                <XCircle size={24} />
+              </button>
+
+              {/* Image Counter */}
+              <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                {selectedImage + 1} / {product.images.length}
+              </div>
+
+              {/* Main Image */}
+              <div className="flex-1 flex items-center justify-center">
+                <img
+                  src={product.images[selectedImage]}
+                  alt={product.name}
+                  className="max-w-full max-h-full object-contain"
+                />
+              </div>
+
+              {/* Thumbnails */}
+              {product.images.length > 1 && (
+                <div className="flex gap-2 justify-center py-4 overflow-x-auto">
+                  {product.images.map((image, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedImage === index
+                          ? 'border-[#D4AF37] ring-2 ring-[#D4AF37]/50'
+                          : 'border-white/30'
+                      }`}
+                    >
+                      <img
+                        src={image}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Custom Scrollbar Styles */}
       <style jsx>{`
