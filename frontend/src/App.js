@@ -29,7 +29,7 @@ import UsersManagement from './pages/admin/UsersManagement';
 import BannersManagement from './pages/admin/BannersManagement';
 import NavigationManagement from './pages/admin/NavigationManagement';
 import ReviewsManagement from './pages/admin/ReviewsManagement';
-
+import OrderDetail from './pages/OrderDetail';
 import './App.css';
 
 // Protected Route Component for Admin
@@ -105,6 +105,7 @@ function App() {
                           <Route path="/checkout" element={<Checkout />} />
                           <Route path="/auth" element={<Auth />} />
                           <Route path="/orders" element={<Orders />} />
+                          <Route path="/orders/:orderId" element={<OrderDetail />} />
                           <Route path="/payment-status" element={<PaymentStatus />} />
                         </Routes>
                       </main>

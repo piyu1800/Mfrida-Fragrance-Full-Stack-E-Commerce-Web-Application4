@@ -18,7 +18,7 @@ const OrdersManagement = () => {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API}/orders/all`, {
+      const response = await axios.get(`${API}/orders/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setOrders(response.data);
@@ -31,8 +31,8 @@ const OrdersManagement = () => {
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `${API}/orders/${orderId}/status`,
+       await axios.put(
+        `${API}/orders/${orderId}`,
         { order_status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -164,7 +164,7 @@ const OrdersManagement = () => {
                   {selectedOrder.items.map((item, idx) => (
                     <div key={idx} className="flex justify-between border-b pb-2">
                       <span>{item.product_name} x {item.quantity}</span>
-                      <span className="font-medium">₹{item.price * item.quantity}</span>
+                      <span className="font-medium">₹{(item.final_price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -172,8 +172,11 @@ const OrdersManagement = () => {
 
               <div>
                 <h3 className="font-semibold mb-2">Shipping Address</h3>
-                <p className="text-sm">{selectedOrder.shipping_address?.address || 'N/A'}</p>
-                <p className="text-sm">{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} {selectedOrder.shipping_address?.pincode}</p>
+                <p className="text-sm">{selectedOrder.shipping_address?.street || 'N/A'}</p>
+                <p className="text-sm">
+                  {selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} {selectedOrder.shipping_address?.postal_code}
+                </p>
+                <p className="text-sm">Phone: {selectedOrder.shipping_address?.phone}</p>
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t">

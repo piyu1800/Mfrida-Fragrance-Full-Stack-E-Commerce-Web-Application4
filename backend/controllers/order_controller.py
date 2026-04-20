@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query, Request
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from models.order_model import OrderCreate, OrderUpdate, Order, OrderStatus, OrderTrackingUpdate
+from models.order_model import OrderCreate, OrderUpdate, Order, OrderStatus, OrderTrackingUpdate , PaymentStatus
 from services.order_service import OrderService
 from services.phonepe_service import PhonePeService
 from decorators.authorization import require_auth, require_admin
@@ -17,7 +17,7 @@ BACKEND_API_URL = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001
 
 class PaymentStatusCheck(BaseModel):
     order_id: str
-    merchant_transaction_id: str
+    merchant_transaction_id: Optional[str] = None
 
 def get_order_router(db: AsyncIOMotorDatabase) -> APIRouter:
     router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -78,46 +78,61 @@ def get_order_router(db: AsyncIOMotorDatabase) -> APIRouter:
     @router.post("/verify-phonepe-payment")
     async def verify_phonepe_payment(payment_check: PaymentStatusCheck, current_user: dict = Depends(require_auth)):
         """
-        Verify PhonePe payment status after user returns from payment page
+        Verify PhonePe payment status after user returns from payment page.
+        merchant_transaction_id is optional — falls back to the one stored on the order.
         """
         order = await order_service.get_order_by_id(payment_check.order_id)
         if not order:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-        
+
         if order.user_id != current_user["user_id"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
-        
-        # Check payment status from PhonePe
-        status_response = PhonePeService.check_payment_status(payment_check.merchant_transaction_id)
-        
-        if not status_response.get("success"):
-                    await order_service.update_payment_failed(
-                        payment_check.order_id,
-                        status_response.get("error") or f"Payment state: {status_response.get('state', 'UNKNOWN')}"
-                    )
-                    return {
-                        "success": False,
-                        "message": status_response.get("error") or f"Payment state: {status_response.get('state', 'UNKNOWN')}"
-                    }
 
-                # Payment successful — map V2 response keys
+        # Fallback: use merchant_transaction_id stored on the order during payment initiation
+        merchant_txn_id = payment_check.merchant_transaction_id or order.phonepe_merchant_transaction_id
+        if not merchant_txn_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No PhonePe transaction linked to this order"
+            )
+
+        # If payment is already marked completed (e.g., webhook fired first), short-circuit success
+        if order.payment_status == PaymentStatus.COMPLETED:
+            return {
+                "success": True,
+                "message": "Payment verified successfully",
+                "transaction_id": order.phonepe_transaction_id or ""
+            }
+
+        status_response = PhonePeService.check_payment_status(merchant_txn_id)
+
+        if not status_response.get("success"):
+            await order_service.update_payment_failed(
+                payment_check.order_id,
+                status_response.get("error") or f"Payment state: {status_response.get('state', 'UNKNOWN')}"
+            )
+            return {
+                "success": False,
+                "message": status_response.get("error") or f"Payment state: {status_response.get('state', 'UNKNOWN')}"
+            }
+
+        # Payment successful — map V2 response keys
         transaction_id = status_response.get("transaction_id", "") or ""
         response_code = status_response.get("state", "")
         payment_method = status_response.get("payment_mode", "") or ""
 
         await order_service.update_payment_info_phonepe(
-                    payment_check.order_id,
-                    payment_check.merchant_transaction_id,
-                    transaction_id,
-                    response_code,
-                    payment_method
-                )
+            payment_check.order_id,
+            merchant_txn_id,
+            transaction_id,
+            response_code,
+            payment_method
+        )
         return {
             "success": True,
             "message": "Payment verified successfully",
             "transaction_id": transaction_id
         }
-    
     @router.post("/phonepe-webhook")
     async def phonepe_webhook(request: Request):
         """

@@ -1,13 +1,35 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Heart, Trash2, ShoppingCart } from 'lucide-react';
+import { toast } from 'sonner';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
-import ProductCard from '../components/ProductCard';
+import { useCart } from '../context/CartContext';
 
 const Wishlist = () => {
-  const { wishlist, loading } = useWishlist();
+  const { wishlist, loading, removeFromWishlist } = useWishlist();
   const { user } = useAuth();
+  const { addToCart } = useCart();
+
+  const handleRemove = async (productId) => {
+    try {
+      await removeFromWishlist(productId);
+      toast.success('Removed from wishlist');
+    } catch {
+      toast.error('Failed to remove');
+    }
+  };
+
+  const handleAddToCart = async (product) => {
+    try {
+      await addToCart(product.id, 1);
+      toast.success('Added to cart');
+    } catch {
+      toast.error('Failed to add to cart');
+    }
+  };
 
   if (!user) {
     return (
@@ -58,7 +80,9 @@ const Wishlist = () => {
       <div className="max-w-[1800px] mx-auto px-6 md:px-12 lg:px-24">
         <div className="mb-12">
           <h1 className="text-4xl md:text-5xl mb-4">My Wishlist</h1>
-          <p className="text-[#585858]">{wishlist.length} {wishlist.length === 1 ? 'item' : 'items'}</p>
+          <p className="text-[#585858]">
+            {wishlist.length} {wishlist.length === 1 ? 'item' : 'items'}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">

@@ -1,4 +1,8 @@
+
+
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { format } from 'date-fns';
 import axios from 'axios';
@@ -11,36 +15,23 @@ const Orders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-
-  // const fetchOrders = async () => {
-  //   try {
-  //     const response = await axios.get(`${API}/orders`, {
-  //       headers: { Authorization: `Bearer ${token}` }
-  //     });
-  //     setOrders(response.data);
-  //   } catch (error) {
-  //     console.error('Error fetching orders:', error);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-const fetchOrders = useCallback(async () => {
-  try {
-    const response = await axios.get(`${API}/orders`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setOrders(response.data);
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-  } finally {
-    setLoading(false);
-  }
-}, [token]);
-
+  const fetchOrders = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOrders(response.data);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
-  fetchOrders();
-}, [fetchOrders]);
+    fetchOrders();
+  }, [fetchOrders]);
+
   const getStatusColor = (status) => {
     const colors = {
       pending: 'text-yellow-700 bg-yellow-100',
@@ -48,7 +39,7 @@ const fetchOrders = useCallback(async () => {
       processing: 'text-purple-700 bg-purple-100',
       shipped: 'text-indigo-700 bg-indigo-100',
       delivered: 'text-green-700 bg-green-100',
-      cancelled: 'text-red-700 bg-red-100'
+      cancelled: 'text-red-700 bg-red-100',
     };
     return colors[status] || 'text-gray-700 bg-gray-100';
   };
@@ -73,7 +64,12 @@ const fetchOrders = useCallback(async () => {
         ) : (
           <div className="space-y-8">
             {orders.map((order) => (
-              <div key={order.id} className="border border-[#1A1A1A]/10 p-8" data-testid={`order-${order.id}`}>
+              <Link
+                key={order.id}
+                to={`/orders/${order.id}`}
+                className="block border border-[#1A1A1A]/10 p-8 hover:border-[#D4AF37] hover:shadow-md transition-all group"
+                data-testid={`order-${order.id}`}
+              >
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <p className="text-sm text-[#585858] mb-1">Order ID: {order.id}</p>
@@ -81,11 +77,20 @@ const fetchOrders = useCallback(async () => {
                       Placed on {format(new Date(order.created_at), 'MMM dd, yyyy')}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <span className={`inline-block px-4 py-2 text-sm uppercase tracking-wider ${getStatusColor(order.order_status)}`}>
+
+                  {/* Status pill + total + View Details chevron */}
+                  <div className="text-right flex flex-col items-end">
+                    <span
+                      className={`inline-block px-4 py-2 text-sm uppercase tracking-wider ${getStatusColor(
+                        order.order_status
+                      )}`}
+                    >
                       {order.order_status}
                     </span>
                     <p className="text-lg font-medium mt-2">₹{order.total.toFixed(2)}</p>
+                    <span className="mt-2 text-xs text-[#585858] group-hover:text-[#D4AF37] flex items-center gap-1 transition-colors">
+                      View Details <ChevronRight size={14} />
+                    </span>
                   </div>
                 </div>
 
@@ -93,7 +98,11 @@ const fetchOrders = useCallback(async () => {
                   {order.items.map((item, index) => (
                     <div key={index} className="flex gap-4">
                       <div className="w-20 h-20 bg-[#F5F2EB] flex-shrink-0">
-                        <img src={item.product_image} alt={item.product_name} className="w-full h-full object-cover" />
+                        <img
+                          src={item.product_image}
+                          alt={item.product_name}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div className="flex-1">
                         <h3 className="font-medium mb-1">{item.product_name}</h3>
@@ -108,11 +117,12 @@ const fetchOrders = useCallback(async () => {
                 <div className="mt-6 pt-6 border-t border-[#1A1A1A]/10">
                   <p className="text-sm text-[#585858] mb-1">Shipping Address:</p>
                   <p className="text-sm">
-                    {order.shipping_address.street}, {order.shipping_address.city}, {order.shipping_address.state} - {order.shipping_address.postal_code}
+                    {order.shipping_address.street}, {order.shipping_address.city},{' '}
+                    {order.shipping_address.state} - {order.shipping_address.postal_code}
                   </p>
                   <p className="text-sm">Phone: {order.shipping_address.phone}</p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
