@@ -22,9 +22,8 @@ const PaymentStatus = () => {
 
   const verifyPayment = async () => {
     const orderId = searchParams.get('order_id');
-    const merchantTransactionId = searchParams.get('merchantTransactionId') || searchParams.get('merchant_transaction_id');
 
-    if (!orderId || !merchantTransactionId) {
+    if (!orderId ) {
       setStatus('failed');
       setMessage('Invalid payment information');
       return;
@@ -35,7 +34,7 @@ const PaymentStatus = () => {
         `${API}/orders/verify-phonepe-payment`,
         {
           order_id: orderId,
-          merchant_transaction_id: merchantTransactionId
+    
         },
         {
           headers: { Authorization: `Bearer ${token}` }

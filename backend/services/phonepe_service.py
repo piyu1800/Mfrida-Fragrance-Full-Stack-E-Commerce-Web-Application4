@@ -1,214 +1,123 @@
 import os
-import hashlib
-import base64
-import json
+import time
+import threading
 import requests
-from typing import Dict, Optional
-import uuid
+from typing import Dict, Optional, Tuple
+from dotenv import load_dotenv
+load_dotenv()
 
-PHONEPE_CLIENT_ID = os.environ.get("PHONEPE_CLIENT_ID", "M2371CVXMIY5Z_2602102100")
-PHONEPE_CLIENT_SECRET = os.environ.get("PHONEPE_CLIENT_SECRET", "NmMzMDRiNTUtNWI5YS00YjRhLTgwN2ItM2VhZGE2MGJhMDk1")
-PHONEPE_SALT_KEY = os.environ.get("PHONEPE_SALT_KEY", "")
-PHONEPE_SALT_INDEX = os.environ.get("PHONEPE_SALT_INDEX", "1")
-PHONEPE_ENVIRONMENT = os.environ.get("PHONEPE_ENVIRONMENT", "test")
+PHONEPE_CLIENT_ID = os.environ.get("PHONEPE_CLIENT_ID", "").strip().strip('"').strip("'")
+PHONEPE_CLIENT_SECRET = os.environ.get("PHONEPE_CLIENT_SECRET", "").strip().strip('"').strip("'")
+PHONEPE_CLIENT_VERSION = os.environ.get("PHONEPE_CLIENT_VERSION", "1").strip().strip('"').strip("'")
+PHONEPE_ENV = os.environ.get("PHONEPE_ENV", "SANDBOX").strip().upper()
 
-# API URLs based on environment
-if PHONEPE_ENVIRONMENT == "production":
-    PHONEPE_BASE_URL = "https://api.phonepe.com/apis/hermes"
-    PHONEPE_AUTH_URL = "https://api.phonepe.com/v1/oauth/token"
+if PHONEPE_ENV == "PRODUCTION":
+    PHONEPE_BASE_URL = "https://api.phonepe.com/apis/pg"
+    PHONEPE_AUTH_URL = "https://api.phonepe.com/apis/identity-manager/v1/oauth/token"
 else:
     PHONEPE_BASE_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox"
-    PHONEPE_AUTH_URL = "https://api-preprod.phonepe.com/v1/oauth/token"
+    PHONEPE_AUTH_URL = "https://api-preprod.phonepe.com/apis/pg-sandbox/v1/oauth/token"
+
+_token_lock = threading.Lock()
+_token_cache = {"access_token": None, "expires_at": 0}
 
 
 class PhonePeService:
-    
+
     @staticmethod
-    def get_access_token() -> Optional[str]:
-        """
-        Get OAuth access token from PhonePe
-        """
-        try:
-            headers = {
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "client_id": PHONEPE_CLIENT_ID,
-                "client_secret": PHONEPE_CLIENT_SECRET,
-                "grant_type": "client_credentials"
-            }
-            
-            response = requests.post(PHONEPE_AUTH_URL, json=payload, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                return data.get("access_token")
-            else:
-                print(f"PhonePe Auth Error: {response.text}")
-                return None
-                
-        except Exception as e:
-            print(f"PhonePe Auth Exception: {str(e)}")
-            return None
-    
-    @staticmethod
-    def generate_checksum(payload: str, endpoint: str) -> str:
-        """
-        Generate X-VERIFY checksum for PhonePe API
-        Formula: SHA256(Base64(payload) + endpoint + saltKey) + "###" + saltIndex
-        """
-        base64_payload = base64.b64encode(payload.encode()).decode()
-        string_to_hash = f"{base64_payload}{endpoint}{PHONEPE_SALT_KEY}"
-        sha256_hash = hashlib.sha256(string_to_hash.encode()).hexdigest()
-        checksum = f"{sha256_hash}###{PHONEPE_SALT_INDEX}"
-        return checksum
-    
-    @staticmethod
-    def create_payment_order(amount: float, merchant_order_id: str, redirect_url: str, callback_url: str, merchant_user_id: str = None) -> Dict:
-        """
-        Create PhonePe payment order
-        amount: Amount in rupees (will be converted to paise)
-        merchant_order_id: Unique order ID
-        redirect_url: URL to redirect after payment
-        callback_url: Server callback URL for payment status
-        """
-        try:
-            print("*******************************************************8")
-            # Convert amount to paise
-            amount_in_paise = int(amount * 100)
-            
-            # Generate merchant transaction ID
-            merchant_transaction_id = f"MT{uuid.uuid4().hex[:20].upper()}"
-            
-            # If no merchant_user_id provided, generate one
-            if not merchant_user_id:
-                merchant_user_id = f"USER{uuid.uuid4().hex[:15].upper()}"
-                
-            print("Client Id", PHONEPE_CLIENT_ID)
-            
-            # Prepare payload
-            payload_data = {
-                "merchantId": PHONEPE_CLIENT_ID,
-                "merchantTransactionId": merchant_transaction_id,
-                "merchantUserId": merchant_user_id,
-                "amount": amount_in_paise,
-                "redirectUrl": redirect_url,
-                "redirectMode": "POST",
-                "callbackUrl": callback_url,
-                "mobileNumber": "",
-                "paymentInstrument": {
-                    "type": "PAY_PAGE"
+    def _get_access_token() -> Tuple[Optional[str], Optional[str]]:
+        """Returns (access_token, error_message). Either token is set OR error is set."""
+        print("Phone pe client id", PHONEPE_CLIENT_ID)
+        if not PHONEPE_CLIENT_ID or not PHONEPE_CLIENT_SECRET:
+            return None, f"Missing env vars. CLIENT_ID set={bool(PHONEPE_CLIENT_ID)}, SECRET set={bool(PHONEPE_CLIENT_SECRET)}"
+
+        now = int(time.time())
+        with _token_lock:
+            if _token_cache["access_token"] and now < (_token_cache["expires_at"] - 300):
+                return _token_cache["access_token"], None
+
+            try:
+                payload = {
+                    "client_id": PHONEPE_CLIENT_ID,
+                    "client_secret": PHONEPE_CLIENT_SECRET,
+                    "client_version": PHONEPE_CLIENT_VERSION,
+                    "grant_type": "client_credentials",
                 }
-            }
-            
-            # Convert to JSON string
-            payload_json = json.dumps(payload_data)
-            
-            # Generate base64 payload
-            base64_payload = base64.b64encode(payload_json.encode()).decode()
-            
-            # Generate checksum
-            endpoint = "/pg/v1/pay"
-            checksum = PhonePeService.generate_checksum(payload_json, endpoint)
-            
-            # API request
-            headers = {
-                "Content-Type": "application/json",
-                "X-VERIFY": checksum
-            }
-            
-            request_payload = {
-                "request": base64_payload
-            }
-            
-            url = f"{PHONEPE_BASE_URL}{endpoint}"
-            response = requests.post(url, json=request_payload, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get("success"):
-                    return {
-                        "success": True,
-                        "merchant_transaction_id": merchant_transaction_id,
-                        "redirect_url": data["data"]["instrumentResponse"]["redirectInfo"]["url"],
-                        "message": data.get("message", "Payment initiated")
-                    }
-                else:
-                    return {
-                        "success": False,
-                        "error": data.get("message", "Payment initiation failed")
-                    }
-            else:
+                headers = {"Content-Type": "application/x-www-form-urlencoded"}
+                resp = requests.post(PHONEPE_AUTH_URL, data=payload, headers=headers, timeout=15)
+
+                if resp.status_code != 200:
+                    # Surface PhonePe's actual error
+                    err = f"PhonePe OAuth {resp.status_code}: {resp.text[:300]}"
+                    print(f"[PhonePe] {err}")
+                    return None, err
+
+                data = resp.json()
+                access_token = data.get("access_token")
+                if not access_token:
+                    return None, f"No access_token in response: {data}"
+
+                expires_at = data.get("expires_at") or (now + int(data.get("expires_in", 3600)))
+                _token_cache.update({"access_token": access_token, "expires_at": int(expires_at)})
+                return access_token, None
+
+            except requests.exceptions.ConnectionError as e:
+                return None, f"Network error reaching PhonePe (firewall/proxy?): {e}"
+            except Exception as e:
+                return None, f"OAuth exception: {type(e).__name__}: {e}"
+
+    @staticmethod
+    def create_payment_order(amount: float, merchant_order_id: str, redirect_url: str, merchant_user_id: str = "guest") -> Dict:
+        token, err = PhonePeService._get_access_token()
+        if not token:
+            return {"success": False, "error": err or "Auth failed"}
+
+        payload = {
+            "merchantOrderId": merchant_order_id,
+            "amount": int(round(amount * 100)),
+            "expireAfter": 1200,
+            "metaInfo": {"udf1": merchant_user_id},
+            "paymentFlow": {
+                "type": "PG_CHECKOUT",
+                "message": "Order Payment",
+                "merchantUrls": {"redirectUrl": redirect_url},
+            },
+        }
+        headers = {"Content-Type": "application/json", "Authorization": f"O-Bearer {token}"}
+        try:
+            resp = requests.post(f"{PHONEPE_BASE_URL}/checkout/v2/pay", json=payload, headers=headers, timeout=20)
+            data = resp.json()
+            if resp.status_code == 200 and data.get("redirectUrl"):
                 return {
-                    "success": False,
-                    "error": f"HTTP {response.status_code}: {response.text}"
+                    "success": True,
+                    "merchant_transaction_id": merchant_order_id,
+                    "redirect_url": data["redirectUrl"],
+                    "order_id": data.get("orderId"),
+                    "state": data.get("state"),
                 }
-                
+            return {"success": False, "error": f"PhonePe pay {resp.status_code}: {resp.text[:300]}"}
         except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def check_payment_status(merchant_order_id: str) -> Dict:
+        token, err = PhonePeService._get_access_token()
+        if not token:
+            return {"success": False, "error": err or "Auth failed"}
+
+        headers = {"Authorization": f"O-Bearer {token}"}
+        url = f"{PHONEPE_BASE_URL}/checkout/v2/order/{merchant_order_id}/status"
+        try:
+            resp = requests.get(url, headers=headers, params={"details": "false"}, timeout=15)
+            data = resp.json()
+            state = data.get("state", "UNKNOWN")
+            pi = (data.get("paymentDetails") or [{}])[0]
             return {
-                "success": False,
-                "error": f"Exception: {str(e)}"
+                "success": (state == "COMPLETED"),
+                "state": state,
+                "amount": data.get("amount"),
+                "transaction_id": pi.get("transactionId"),
+                "payment_mode": pi.get("paymentMode") or pi.get("instrumentType"),
             }
-    
-    @staticmethod
-    def check_payment_status(merchant_transaction_id: str) -> Dict:
-        """
-        Check payment status for a transaction
-        """
-        try:
-            endpoint = f"/pg/v1/status/{PHONEPE_CLIENT_ID}/{merchant_transaction_id}"
-            
-            # Generate checksum for status check
-            string_to_hash = f"{endpoint}{PHONEPE_SALT_KEY}"
-            sha256_hash = hashlib.sha256(string_to_hash.encode()).hexdigest()
-            checksum = f"{sha256_hash}###{PHONEPE_SALT_INDEX}"
-            
-            headers = {
-                "Content-Type": "application/json",
-                "X-VERIFY": checksum,
-                "X-MERCHANT-ID": PHONEPE_CLIENT_ID
-            }
-            
-            url = f"{PHONEPE_BASE_URL}{endpoint}"
-            response = requests.get(url, headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                return {
-                    "success": data.get("success", False),
-                    "code": data.get("code"),
-                    "message": data.get("message"),
-                    "data": data.get("data", {})
-                }
-            else:
-                return {
-                    "success": False,
-                    "error": f"HTTP {response.status_code}: {response.text}"
-                }
-                
         except Exception as e:
-            return {
-                "success": False,
-                "error": f"Exception: {str(e)}"
-            }
-    
-    @staticmethod
-    def verify_webhook_signature(x_verify_header: str, response_body: str) -> bool:
-        """
-        Verify webhook callback signature
-        """
-        try:
-            # Decode base64 response
-            decoded_response = base64.b64decode(response_body).decode()
-            
-            # Calculate expected checksum
-            string_to_hash = f"{decoded_response}{PHONEPE_SALT_KEY}"
-            expected_hash = hashlib.sha256(string_to_hash.encode()).hexdigest()
-            expected_checksum = f"{expected_hash}###{PHONEPE_SALT_INDEX}"
-            
-            return x_verify_header == expected_checksum
-            
-        except Exception as e:
-            print(f"Webhook verification error: {str(e)}")
-            return False
+            return {"success": False, "error": str(e)}

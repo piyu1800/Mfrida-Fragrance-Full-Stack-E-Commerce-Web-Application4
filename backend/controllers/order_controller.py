@@ -7,6 +7,7 @@ from decorators.authorization import require_auth, require_admin
 from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime, timezone
+import hashlib
 import base64
 import json
 import os
@@ -40,14 +41,14 @@ def get_order_router(db: AsyncIOMotorDatabase) -> APIRouter:
         
         # PhonePe redirect and callback URLs
         redirect_url = f"{FRONTEND_URL}/payment-status?order_id={order_id}"
-        callback_url = f"{BACKEND_API_URL}/orders/phonepe-webhook"
+        # callback_url = f"{BACKEND_API_URL}/orders/phonepe-webhook"
         
         # Create PhonePe payment order
         phonepe_response = PhonePeService.create_payment_order(
             amount=order.total,
             merchant_order_id=order_id,
             redirect_url=redirect_url,
-            callback_url=callback_url,
+            # callback_url=callback_url,
             merchant_user_id=current_user["user_id"]
         )
         
@@ -90,29 +91,27 @@ def get_order_router(db: AsyncIOMotorDatabase) -> APIRouter:
         status_response = PhonePeService.check_payment_status(payment_check.merchant_transaction_id)
         
         if not status_response.get("success"):
-            await order_service.update_payment_failed(
-                payment_check.order_id,
-                status_response.get("message", "Payment verification failed")
-            )
-            return {
-                "success": False,
-                "message": status_response.get("message", "Payment verification failed")
-            }
-        
-        # Payment successful
-        payment_data = status_response.get("data", {})
-        transaction_id = payment_data.get("transactionId", "")
-        response_code = status_response.get("code", "")
-        payment_method = payment_data.get("paymentInstrument", {}).get("type", "")
-        
+                    await order_service.update_payment_failed(
+                        payment_check.order_id,
+                        status_response.get("error") or f"Payment state: {status_response.get('state', 'UNKNOWN')}"
+                    )
+                    return {
+                        "success": False,
+                        "message": status_response.get("error") or f"Payment state: {status_response.get('state', 'UNKNOWN')}"
+                    }
+
+                # Payment successful — map V2 response keys
+        transaction_id = status_response.get("transaction_id", "") or ""
+        response_code = status_response.get("state", "")
+        payment_method = status_response.get("payment_mode", "") or ""
+
         await order_service.update_payment_info_phonepe(
-            payment_check.order_id,
-            payment_check.merchant_transaction_id,
-            transaction_id,
-            response_code,
-            payment_method
-        )
-        
+                    payment_check.order_id,
+                    payment_check.merchant_transaction_id,
+                    transaction_id,
+                    response_code,
+                    payment_method
+                )
         return {
             "success": True,
             "message": "Payment verified successfully",
@@ -122,50 +121,85 @@ def get_order_router(db: AsyncIOMotorDatabase) -> APIRouter:
     @router.post("/phonepe-webhook")
     async def phonepe_webhook(request: Request):
         """
-        Handle PhonePe webhook callback
+        Handle PhonePe V2 webhook callback.
+        V2 uses HTTP Basic Auth: Authorization header is SHA256(username:password).
         """
         try:
+            # 1. Read and decode the raw body
             body = await request.body()
-            body_str = body.decode()
+            body_str = body.decode("utf-8")
             
-            # Get X-VERIFY header
-            x_verify = request.headers.get("X-VERIFY", "")
-            
-            # Parse the body
+            # 2. Verify Authorization header
+            auth_header = request.headers.get("Authorization", "")
+            if not verify_phonepe_webhook(auth_header):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, 
+                    detail="Invalid webhook signature"
+                )
+
+            # 3. Parse JSON Data
             data = json.loads(body_str)
-            response_base64 = data.get("response", "")
+            event = data.get("event", "")
+            payload = data.get("payload", {})
             
-            # Verify signature
-            if not PhonePeService.verify_webhook_signature(x_verify, response_base64):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature")
-            
-            # Decode response
-            decoded_response = base64.b64decode(response_base64).decode()
-            response_data = json.loads(decoded_response)
-            
-            # Extract payment info
-            if response_data.get("success"):
-                merchant_transaction_id = response_data.get("data", {}).get("merchantTransactionId", "")
-                transaction_id = response_data.get("data", {}).get("transactionId", "")
-                response_code = response_data.get("code", "")
-                
-                # Find order by merchant_transaction_id
-                order = await db.orders.find_one({"phonepe_merchant_transaction_id": merchant_transaction_id})
-                
-                if order:
-                    await order_service.update_payment_info_phonepe(
-                        order["id"],
-                        merchant_transaction_id,
-                        transaction_id,
-                        response_code
-                    )
-            
+            merchant_order_id = payload.get("merchantOrderId")
+            state = payload.get("state", "").upper()
+
+            if not merchant_order_id:
+                return {"success": False, "error": "Missing merchantOrderId"}
+
+            # 4. Fetch the order from DB
+            order = await db.orders.find_one({"id": merchant_order_id})
+            if not order:
+                # We return 200 even if not found to stop PhonePe from retrying a dead order
+                return {"success": False, "error": "Order not found"}
+
+            # 5. Process Payment Success
+            if state == "COMPLETED" or event == "checkout.order.completed":
+                # Safely extract payment details
+                details = payload.get("paymentDetails", [{}])[0]
+                transaction_id = details.get("transactionId", "")
+                payment_instrument = details.get("paymentMode") or details.get("instrumentType") or "UNKNOWN"
+
+                await order_service.update_payment_info_phonepe(
+                    order_id=order["id"],
+                    merchant_order_id=merchant_order_id,
+                    transaction_id=transaction_id,
+                    state=state,
+                    payment_instrument=payment_instrument,
+                )
+
+            # 6. Process Payment Failure
+            elif state == "FAILED" or event == "checkout.order.failed":
+                await order_service.update_payment_failed(
+                    order["id"], 
+                    f"PhonePe reported failure: {state}"
+                )
+
             return {"success": True}
-            
+
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON body")
         except Exception as e:
-            print(f"Webhook error: {str(e)}")
-            return {"success": False, "error": str(e)}
+            # Log the error properly in a production environment
+            print(f"[PhonePe Webhook Error]: {e}")
+            return {"success": False, "message": "Internal processing error"}
     
+    def verify_phonepe_webhook(authorization_header: str) -> bool:
+        """
+        Helper to verify the SHA256 hash of the webhook credentials.
+        """
+        user = os.environ.get("PHONEPE_WEBHOOK_USERNAME", "")
+        password = os.environ.get("PHONEPE_WEBHOOK_PASSWORD", "")
+        
+        if not user or not password:
+            # In Sandbox/Dev, you might skip this, but it's risky
+            return True
+            
+        expected_hash = hashlib.sha256(f"{user}:{password}".encode()).hexdigest()
+        return authorization_header.strip() == expected_hash        
+        
+
     @router.get("/", response_model=List[Order])
     async def get_orders(
         status_filter: Optional[OrderStatus] = None,
